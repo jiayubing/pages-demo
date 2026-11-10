@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08060e">
-  <meta name="description" content="紫色心跳 · GPU 星尘、蓝紫梦云与紫水晶体积雕塑，原生 WebGL2 与自适应画质。">
+  <meta name="description" content="紫色心跳 · GPU 星尘、增强星云薄纱与蓝紫梦境雕塑，原生 WebGL2 与自适应画质。">
   <title>紫色心跳 · WebGL</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c7a2e6' d='M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z'/%3E%3C/svg%3E">
   <style>
@@ -42,7 +42,7 @@
 <body>
 <main aria-label="紫色心跳 WebGL 粒子雕塑">
   <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
-  <header class="top"><div class="eyebrow">VIOLET / 05.2</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
+  <header class="top"><div class="eyebrow">VIOLET / 05.3</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
   <div id="notice">移动鼠标 · 触碰爱心</div>
   <footer class="footer">
     <div class="toolbar">
@@ -64,7 +64,7 @@
 <script>
 'use strict';
 
-// Violet / 05.1 — cooler blue-violet grading + softer internal filaments + visible dreamy ornaments.
+// Violet / 05.1 — stronger nebula veils + floating post-intro motion + cooler blue-violet grading.
 // Canonical WebGL2 viewer, rendered at the site root.
 (() => {
   const canvas = document.getElementById('scene');
@@ -203,8 +203,12 @@ void main(){
       float linger=pow(max(0.0,1.0-local),1.4);
       size*=1.0+linger*.5;
     }
-    float breath=1.0+sin(t*1.18)*.009*smoothstep(2.0,4.5,uElapsed);
+    float revealMotion=smoothstep(4.0,6.2,uElapsed);
+    float breath=1.0+sin(t*1.18)*(.009+.006*revealMotion)*smoothstep(2.0,4.5,uElapsed);
+    float levitation=(sin(t*.56)*.026+sin(t*.21+1.7)*.012)*revealMotion;
     pos.xy*=breath;
+    pos.y+=levitation;
+    pos.x+=sin(t*.34+phase*.7)*.006*revealMotion;
     vec3 rotated=uRotation*pos;
     perspective=1.0/(1.0-rotated.z*.22);
     clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
@@ -325,25 +329,28 @@ void main(){
   float vault=exp(-dot((uv-vec2(-.06,.12))*vec2(.80,1.14),(uv-vec2(-.06,.12))*vec2(.80,1.14))*6.4);
   float floorGlow=exp(-pow(uv.x/.51,2.0)*2.7-pow((uv.y+.405)/.065,2.0)*1.4);
   vec2 drift=uv*vec2(1.35,1.65);
-  float cloudA=fbm(drift*1.85+vec2(uTime*.020,-uTime*.012));
-  float cloudB=fbm(drift*2.45+vec2(-uTime*.016,uTime*.019));
-  // Mist now occupies a visible range of FBM instead of being almost entirely clipped.
-  float veilA=smoothstep(.19,.43,cloudA-length(uv-vec2(-.12,.05))*.20);
-  float veilB=smoothstep(.23,.47,cloudB-length(uv-vec2(.19,-.07))*.23);
-  float mistA=exp(-pow((uv.y-.19*sin(uv.x*3.0+uTime*.075)-.06)/.115,2.0))
-              * exp(-pow((uv.x+.20)/.65,2.0));
-  float mistB=exp(-pow((uv.y+.13*sin(uv.x*3.7-uTime*.067)+.18)/.125,2.0))
-              * exp(-pow((uv.x-.16)/.75,2.0));
+  float cloudA=fbm(drift*1.95+vec2(uTime*.024,-uTime*.015));
+  float cloudB=fbm(drift*2.55+vec2(-uTime*.018,uTime*.022));
+  float cloudC=fbm(drift*1.35+vec2(uTime*.012,uTime*.009)+vec2(7.3,2.1));
+  // Mist occupies a larger visible range so the nebula veil reads clearly behind the sculpture.
+  float veilA=smoothstep(.14,.39,cloudA-length(uv-vec2(-.10,.03))*.16);
+  float veilB=smoothstep(.18,.43,cloudB-length(uv-vec2(.20,-.06))*.19);
+  float veilC=smoothstep(.20,.48,cloudC-length(uv-vec2(.02,.16))*.24);
+  float mistA=exp(-pow((uv.y-.19*sin(uv.x*3.0+uTime*.075)-.06)/.125,2.0))
+              * exp(-pow((uv.x+.20)/.70,2.0));
+  float mistB=exp(-pow((uv.y+.13*sin(uv.x*3.7-uTime*.067)+.18)/.135,2.0))
+              * exp(-pow((uv.x-.16)/.80,2.0));
   vec3 c=vec3(.022,.016,.034);
   c+=vec3(.045,.024,.067)*halo;
   c+=vec3(.028,.013,.035)*mauve;
   c+=vec3(.027,.010,.032)*below;
   c+=vec3(.012,.009,.018)*vault;
   c+=vec3(.048,.021,.061)*floorGlow;
-  c+=vec3(.050,.040,.093)*veilA;
-  c+=vec3(.038,.032,.083)*veilB;
-  c+=vec3(.026,.026,.060)*mistA;
-  c+=vec3(.021,.022,.049)*mistB;
+  c+=vec3(.074,.061,.128)*veilA;
+  c+=vec3(.056,.050,.110)*veilB;
+  c+=vec3(.040,.046,.093)*veilC;
+  c+=vec3(.033,.036,.074)*mistA;
+  c+=vec3(.028,.031,.064)*mistB;
   float vignette=1.0-smoothstep(.15,1.3,length(uv));
   c*=.73+.27*vignette;
   c+=(hash(gl_FragCoord.xy)-.5)*.0024;
@@ -376,11 +383,15 @@ vec2 project(vec3 p){
   return vec2(r.x,-r.y)*uUnit*depth*2.0/uViewport+vec2(0.0,.065);
 }
 void main(){
+  float revealMotion=smoothstep(4.0,6.2,uElapsed);
+  float levitation=(sin(uTime*.56)*.026+sin(uTime*.21+1.7)*.012)*revealMotion;
   float lane=float(gl_InstanceID);
   float stepId=float(gl_VertexID/2);
   float t=stepId/192.0;
   float a=t*TAU+uTime*(lane<.5?.085:-.053)+(lane<.5?0.0:1.15);
   vec3 p=orbit(a,lane);
+  p.y+=levitation;
+  p.x+=sin(uTime*.28+a*1.3)*.028*revealMotion*(lane<.5?1.0:.65);
   vec3 rotated=uRotation*p;
   vec2 screen=project(p);
   vec2 screenNext=project(orbit(a+.009,lane));
@@ -426,9 +437,13 @@ out vec3 vPos;
 out vec3 vBody;
 void main(){
   float reveal=smoothstep(1.55,4.15,uElapsed);
-  float breath=1.0+sin(uTime*1.18)*.009*reveal;
+  float revealMotion=smoothstep(4.0,6.2,uElapsed);
+  float breath=1.0+sin(uTime*1.18)*(.009+.006*revealMotion)*reveal;
+  float levitation=(sin(uTime*.56)*.026+sin(uTime*.21+1.7)*.012)*revealMotion;
   vec3 p=aPosition;
   p.xy*=breath;
+  p.y+=levitation;
+  p.x+=sin(uTime*.34+aPosition.y*5.0)*.006*revealMotion;
   vec3 rotated=uRotation*p;
   float perspective=1.0/(1.0-rotated.z*.22);
   vec2 clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
@@ -711,9 +726,9 @@ void main(){
     if(!gl||disposed||hidden)return;
     const t=clock;
     // The wider slow yaw makes the sculpture's thickness legible, without spinning it.
-     const yaw=(Math.sin(Math.max(0,t-3)*.31)*.56+smoothX*.24)*Math.min(1,elapsed/4);
-     const pitch=-.085+Math.sin(t*.44)*.105+smoothY*.14;
-     const roll=Math.sin(t*.32)*.028;
+     const yaw=(Math.sin(Math.max(0,t-3)*.34)*.60+smoothX*.24)*Math.min(1,elapsed/4);
+     const pitch=-.082+Math.sin(t*.48)*.112+smoothY*.14;
+     const roll=Math.sin(t*.36)*.034;
      const pose=rotation(yaw,pitch,roll);
     gl.disable(gl.BLEND);
     gl.useProgram(backgroundProgram);
