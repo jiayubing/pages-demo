@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08060e">
-  <meta name="description" content="紫色心跳 · GPU 粒子雕塑，使用原生 WebGL2 和自适应画质。">
+  <meta name="description" content="紫色心跳 · GPU 星尘与紫水晶体积雕塑，原生 WebGL2 与自适应画质。">
   <title>紫色心跳 · WebGL</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c7a2e6' d='M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z'/%3E%3C/svg%3E">
   <style>
@@ -42,7 +42,7 @@
 <body>
 <main aria-label="紫色心跳 WebGL 粒子雕塑">
   <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
-  <header class="top"><div class="eyebrow">VIOLET / 03</div><h1>紫色心跳</h1><div class="subtitle">A SCULPTURE OF LIGHT</div></header>
+  <header class="top"><div class="eyebrow">VIOLET / 04</div><h1>紫色心跳</h1><div class="subtitle">AN ATMOSPHERE OF LIGHT</div></header>
   <div id="notice">移动鼠标 · 触碰爱心</div>
   <footer class="footer">
     <div class="toolbar">
@@ -64,7 +64,7 @@
 <script>
 'use strict';
 
-// Violet / 03 — dependency-free WebGL2 particle sculpture.
+// Violet / 04 — GPU particles + a softly shaded 3D shell + an ambient orbit.
 // Canonical WebGL2 viewer, rendered at the site root.
 (() => {
   const canvas = document.getElementById('scene');
@@ -78,15 +78,15 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   if (reducedMotion.matches) notice.textContent = '已遵循系统减少动画设置 · 点击「继续」播放';
   const presets = {
-    low:    { shell: 1750, fibers: 300, rim: 240, stars: 72, dust: 35, dpr: 1.05 },
-    medium: { shell: 3000, fibers: 575, rim: 400, stars: 120, dust: 65, dpr: 1.3 },
-    high:   { shell: 4900, fibers: 860, rim: 650, stars: 165, dust: 95, dpr: 1.6 },
+    low:    { shell: 1750, fibers: 300, rim: 240, stars: 72, dust: 35, orbit: 36, dpr: 1.05 },
+    medium: { shell: 3000, fibers: 575, rim: 400, stars: 120, dust: 65, orbit: 72, dpr: 1.3 },
+    high:   { shell: 4900, fibers: 860, rim: 650, stars: 165, dust: 95, orbit: 108, dpr: 1.6 },
   };
   const labels = { low: '流畅', medium: '均衡', high: '精细' };
   const TAU = Math.PI * 2;
   const centerY = .075;
-  let gl, program, backgroundProgram, vao, buffer, fullscreenVao;
-  let particleUniforms, backgroundUniforms;
+  let gl, program, backgroundProgram, surfaceProgram, vao, buffer, fullscreenVao, surfaceVao, surfaceIndexCount;
+  let particleUniforms, backgroundUniforms, surfaceUniforms;
   let particleCount = 0;
   let tier = 'medium', auto = true, running = !reducedMotion.matches;
   let elapsed = reducedMotion.matches ? 8 : 0;
@@ -149,7 +149,17 @@ void main(){
     alpha*=.72+.28*sin(t*1.23+phase);
     size*=.85+.15*sin(t*.7+phase);
   } else {
-    if(kind>.5 && kind<1.5){
+    if(kind>4.5 && kind<5.5){
+       // Sparse, tilted 3D orbit: individual grains, never a bright neon ring.
+       float a=aTarget.x+t*aMeta.z*.16;
+       float orbitRadius=aTarget.y;
+       pos=vec3(cos(a)*orbitRadius,
+                sin(a)*.28+cos(a)*.18+aStart.x,
+                sin(a)*.72+aTarget.z);
+       alpha*=smoothstep(3.0,5.2,uElapsed)*(.67+.33*sin(t*.65+phase));
+       alpha*=.70;
+       size*=.86;
+     } else if(kind>.5 && kind<1.5){
       float a=aTarget.x+t*aMeta.z*.15;
       float r=aTarget.y+sin(t*2.0+phase)*.012;
       vec2 e=heart(a);
@@ -188,14 +198,20 @@ void main(){
     perspective=1.0/(1.0-rotated.z*.22);
     clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
      // Grazing key light and front/back attenuation create sculptural volume.
-    float facing=smoothstep(-.80,.93,rotated.z);
+    float facing=smoothstep(-.86,.77,rotated.z);
     vec3 approxNormal=normalize(vec3(aTarget.x*.32, aTarget.y*.36, sign(aTarget.z)*.91));
     vec3 worldNormal=uRotation*approxNormal;
     float key=max(dot(worldNormal,normalize(vec3(-.42,-.35,.84))),0.0);
     float grazing=pow(1.0-abs(worldNormal.z),2.0);
-    alpha*=mix(.46,1.18,facing)*(.80+.37*key);
-    light*=.82+.33*key+.15*grazing;
-    if(kind<.5 || kind>3.5){
+    if(kind>4.5){
+      // Ambient orbit responds to depth but should not inherit the heart skin's heavy back shadow.
+      alpha*=.64+.36*smoothstep(-.75,.78,rotated.z);
+      light*=.75;
+    } else {
+      alpha*=mix(.24,1.10,facing)*(.77+.38*key);
+      light*=.68+.43*key+.19*grazing;
+    }
+    if(kind<.5 || (kind>3.5 && kind<4.5)){
       size*=1.075;
       // Click ripple is centered on the actual pointer location in screen space.
       if(uPulseAge>=0.0 && uPulseAge<1.65){
@@ -214,11 +230,16 @@ void main(){
   }
   vec3 base=palette(aMeta.w);
   // Keep the deepest layers cool while brightening the top-left catching edge.
-  if(kind<.5 || kind>3.5){
+  if(kind<.5 || (kind>3.5 && kind<4.5)){
     float pearly=clamp(.5-aTarget.x*.20-aTarget.y*.18,0.0,1.0);
     base=mix(base,vec3(.95,.82,1.0),pearly*.18);
   }
   if(kind>1.5 && kind<2.5) base=mix(base,vec3(.55,.45,.75),.27);
+   // Back-facing grains lose saturation so the front reads as a coherent surface.
+   if(kind<.5 || (kind>3.5 && kind<4.5)){
+     float nearFace=smoothstep(-.45,.80,(uRotation*aTarget).z);
+     base=mix(base,vec3(.24,.15,.39),.48*(1.0-nearFace));
+   }
   vColor=base*light;
   vAlpha=alpha;
   vGlint=glint;
@@ -268,15 +289,71 @@ void main(){
   float mauve=exp(-dot((uv-vec2(.22,-.1))*vec2(1.3,1.6),(uv-vec2(.22,-.1))*vec2(1.3,1.6))*10.0);
   float below=exp(-dot((uv-vec2(-.06,-.40))*vec2(.9,1.8),(uv-vec2(-.06,-.40))*vec2(.9,1.8))*7.0);
   float vault=exp(-dot((uv-vec2(-.06,.12))*vec2(.80,1.14),(uv-vec2(-.06,.12))*vec2(.80,1.14))*6.4);
+   // A dim pool of light beneath the suspended sculpture: visible only on close inspection.
+   float floorGlow=exp(-pow(uv.x/.51,2.0)*2.7-pow((uv.y+.405)/.065,2.0)*1.4);
   vec3 c=vec3(.023,.017,.036);
   c+=vec3(.045,.024,.067)*halo;
   c+=vec3(.028,.013,.035)*mauve;
   c+=vec3(.027,.010,.032)*below;
   c+=vec3(.012,.009,.018)*vault;
+   c+=vec3(.048,.021,.061)*floorGlow;
   float vignette=1.0-smoothstep(.15,1.3,length(uv));
   c*=.73+.27*vignette;
   c+=(noise(gl_FragCoord.xy)-.5)*.0024;
   outColor=vec4(c,1.0);
+}`;
+
+  const surfaceVertex = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPosition;
+layout(location=1) in vec3 aNormal;
+uniform vec2 uViewport;
+uniform float uUnit;
+uniform float uElapsed;
+uniform float uTime;
+uniform mat3 uRotation;
+out vec3 vNormal;
+out vec3 vPos;
+void main(){
+  float reveal=smoothstep(1.55,4.15,uElapsed);
+  float breath=1.0+sin(uTime*1.18)*.009*reveal;
+  vec3 p=aPosition;
+  p.xy*=breath;
+  vec3 rotated=uRotation*p;
+  float perspective=1.0/(1.0-rotated.z*.22);
+  vec2 clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
+  gl_Position=vec4(clip,0.0,1.0);
+  vNormal=normalize(uRotation*aNormal);
+  vPos=rotated;
+}`;
+
+  const surfaceFragment = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+in vec3 vPos;
+uniform float uElapsed;
+uniform float uTime;
+out vec4 outColor;
+void main(){
+  vec3 n=normalize(vNormal);
+  vec3 lightDir=normalize(vec3(-.46,-.34,.82));
+  float key=max(dot(n,lightDir),0.0);
+  float fill=max(dot(n,normalize(vec3(.72,.10,.44))),0.0);
+  float edge=pow(1.0-abs(n.z),2.2);
+  float front=smoothstep(-.35,.80,n.z);
+  float reveal=smoothstep(1.65,4.15,uElapsed);
+  // Muted amethyst with diffuse volume and a grazing rim, not a luminous decal.
+  vec3 ink=vec3(.048,.025,.076);
+  ink+=vec3(.092,.061,.139)*key;
+  ink+=vec3(.026,.015,.044)*fill;
+  ink+=vec3(.071,.045,.105)*edge;
+  // Broad soft specular and edge transmission keep the shell from reading as a flat sticker.
+  float pearl=pow(max(dot(n,normalize(vec3(-.62,-.22,.92))),0.0),18.0);
+  ink+=vec3(.063,.042,.091)*pearl;
+  ink*=mix(.91,1.15,clamp(length(vPos.xy)/1.15,0.0,1.0));
+  ink*=.965+.035*sin(vPos.x*73.0+vPos.y*31.0)*sin(vPos.y*67.0);
+  float opacity=reveal*mix(.59,.88,front);
+  outColor=vec4(ink,opacity);
 }`;
 
   function showError(message){
@@ -366,11 +443,62 @@ void main(){
       add([rand(),rand(),0],[0,0,0],between(1.3,4.0),between(0,TAU),1,rand()>.84?4:1,0,1,between(.10,.34),2);
     }
     for(let i=0;i<opt.dust;i++){
-      const a=between(0,TAU),r=between(1.07,1.65);
-      add([Math.cos(a)*r,Math.sin(a)*r*.75,between(-.3,.35)],[0,0,0],between(1.5,4.4),between(0,TAU),1,2,0,1,between(.12,.30),3);
-    }
-    return new Float32Array(data);
+       const a=between(0,TAU),r=between(1.07,1.65);
+       add([Math.cos(a)*r,Math.sin(a)*r*.75,between(-.3,.35)],[0,0,0],between(1.5,4.4),between(0,TAU),1,2,0,1,between(.12,.30),3);
+     }
+     // Very low density 3D orbit. All orbit particles share the same draw call.
+     for(let i=0;i<opt.orbit;i++){
+       add([between(0,TAU),between(1.19,1.58),between(-.12,.12)],
+           [between(-.19,.19),0,0],between(2.4,5.7),between(0,TAU),
+           between(-.42,.42),i%7===0?3:2,0,1,between(.17,.46),5);
+     }
+     return new Float32Array(data);
   }
+  function buildSurface(){
+    const segments=192, bands=22, inner=.012, outer=.998;
+    const vertices=[], indices=[];
+    function point(angle,r,side){
+      const sn=Math.sin(angle),co=Math.cos(angle);
+      const x=sn*sn*sn;
+      const y=(-13*co+5*Math.cos(2*angle)+2*Math.cos(3*angle)+Math.cos(4*angle)-2.4)/16;
+      const yy=centerY+(y-centerY)*r;
+      const depth=.80*Math.sqrt(Math.max(0,1-r*r))*(1-Math.max(0,yy)*.28);
+      return [x*r, yy, side*depth];
+    }
+    function normal(t,r,side){
+      const dt=.002, dr=.004;
+      const a=point(t+dt,r,side),b=point(t-dt,r,side);
+      const c=point(t,Math.min(outer,r+dr),side),d=point(t,Math.max(.001,r-dr),side);
+      const t0=[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+      const t1=[c[0]-d[0],c[1]-d[1],c[2]-d[2]];
+      let x=t0[1]*t1[2]-t0[2]*t1[1];
+      let y=t0[2]*t1[0]-t0[0]*t1[2];
+      let z=t0[0]*t1[1]-t0[1]*t1[0];
+      if(z*side<0){x=-x;y=-y;z=-z;}
+      const inv=1/(Math.hypot(x,y,z)||1);
+      return [x*inv,y*inv,z*inv];
+    }
+    // Single convex translucent front surface. Rear grains stay dark, saving fill-rate and avoiding double contours.
+    for(const side of [1]){
+      const base=vertices.length/6;
+      for(let j=0;j<=bands;j++){
+        const r=inner+(outer-inner)*j/bands;
+        for(let i=0;i<segments;i++){
+          const t=i/segments*TAU;
+          const q=point(t,r,side),n=normal(t,r,side);
+          vertices.push(...q,...n);
+        }
+      }
+      for(let j=0;j<bands;j++) for(let i=0;i<segments;i++){
+        const next=(i+1)%segments;
+        const a=base+j*segments+i,b=base+j*segments+next;
+        const c=base+(j+1)*segments+i,d=base+(j+1)*segments+next;
+        indices.push(a,c,b,b,c,d);
+      }
+    }
+    return {vertices:new Float32Array(vertices),indices:new Uint16Array(indices)};
+  }
+
   function rotation(yaw,pitch,roll){
     const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch),cz=Math.cos(roll),sz=Math.sin(roll);
     // Column-major mat3 for Rx * Ry, followed by a gentle z-axis roll.
@@ -386,8 +514,10 @@ void main(){
     // Report compiling errors visibly instead of leaving the canvas black.
     program=makeProgram(vertexSource,fragmentSource);
     backgroundProgram=makeProgram(backgroundVertex,backgroundFragment);
+     surfaceProgram=makeProgram(surfaceVertex,surfaceFragment);
     particleUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uPulseAge','uPulseOrigin','uRotation'].map(name=>[name,gl.getUniformLocation(program,name)]));
     backgroundUniforms=Object.fromEntries(['uResolution','uTime'].map(name=>[name,gl.getUniformLocation(backgroundProgram,name)]));
+     surfaceUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uRotation'].map(name=>[name,gl.getUniformLocation(surfaceProgram,name)]));
     vao=gl.createVertexArray();gl.bindVertexArray(vao);
     const corners=new Float32Array([-1,-1,1,-1,-1,1,1,1]);
     const cornerBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cornerBuffer);
@@ -401,7 +531,19 @@ void main(){
     }
     gl.bindVertexArray(null);
     fullscreenVao=gl.createVertexArray();
-    setTier(tier);
+     const skin=buildSurface();
+     surfaceIndexCount=skin.indices.length;
+     surfaceVao=gl.createVertexArray();gl.bindVertexArray(surfaceVao);
+     const surfaceBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,surfaceBuffer);
+     gl.bufferData(gl.ARRAY_BUFFER,skin.vertices,gl.STATIC_DRAW);
+     for(const [location,count,offset] of [[0,3,0],[1,3,3]]){
+       gl.enableVertexAttribArray(location);
+       gl.vertexAttribPointer(location,count,gl.FLOAT,false,6*4,offset*4);
+     }
+     const indices=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indices);
+     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,skin.indices,gl.STATIC_DRAW);
+     gl.bindVertexArray(null);
+     setTier(tier);
     return true;
   }
   function setTier(next){
@@ -430,19 +572,32 @@ void main(){
   function render(){
     if(!gl||disposed||hidden)return;
     const t=clock;
-    const yaw=(Math.sin(Math.max(0,t-3)*.40)*.42+smoothX*.20)*Math.min(1,elapsed/4);
-    const pitch=-.075+Math.sin(t*.52)*.08+smoothY*.13;
-    const roll=Math.sin(t*.37)*.038;
+    // The wider slow yaw makes the sculpture's thickness legible, without spinning it.
+     const yaw=(Math.sin(Math.max(0,t-3)*.33)*.58+smoothX*.24)*Math.min(1,elapsed/4);
+     const pitch=-.09+Math.sin(t*.46)*.115+smoothY*.14;
+     const roll=Math.sin(t*.32)*.028;
+     const pose=rotation(yaw,pitch,roll);
     gl.disable(gl.BLEND);
     gl.useProgram(backgroundProgram);
     gl.bindVertexArray(fullscreenVao);
     gl.uniform2f(backgroundUniforms.uResolution,canvas.width,canvas.height);
     gl.uniform1f(backgroundUniforms.uTime,t);
     gl.drawArrays(gl.TRIANGLES,0,3);
-    gl.enable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
-    gl.useProgram(program);
+     // A curved, translucent three-dimensional skin is shaded beneath the stars.
+     // One indexed draw, no depth texture, post-processing, or extra framebuffer.
+     gl.enable(gl.BLEND);
+     gl.blendEquation(gl.FUNC_ADD);
+     gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+     gl.useProgram(surfaceProgram);
+     gl.bindVertexArray(surfaceVao);
+     gl.uniform2f(surfaceUniforms.uViewport,width,height);
+     gl.uniform1f(surfaceUniforms.uUnit,unit);
+     gl.uniform1f(surfaceUniforms.uElapsed,elapsed);
+     gl.uniform1f(surfaceUniforms.uTime,t);
+     gl.uniformMatrix3fv(surfaceUniforms.uRotation,false,pose);
+     gl.drawElements(gl.TRIANGLES,surfaceIndexCount,gl.UNSIGNED_SHORT,0);
+     gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+     gl.useProgram(program);
     gl.bindVertexArray(vao);
     gl.uniform2f(particleUniforms.uViewport,width,height);
     gl.uniform1f(particleUniforms.uUnit,unit);
@@ -450,7 +605,7 @@ void main(){
     gl.uniform1f(particleUniforms.uTime,t);
     gl.uniform1f(particleUniforms.uPulseAge,pulseTime<0?-1:clock-pulseTime);
     gl.uniform2f(particleUniforms.uPulseOrigin,pulseX,pulseY);
-    gl.uniformMatrix3fv(particleUniforms.uRotation,false,rotation(yaw,pitch,roll));
+    gl.uniformMatrix3fv(particleUniforms.uRotation,false,pose);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,particleCount);
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
