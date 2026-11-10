@@ -42,7 +42,7 @@
 <body>
 <main aria-label="紫色心跳 WebGL 粒子雕塑">
   <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
-  <header class="top"><div class="eyebrow">VIOLET / 05.4</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
+  <header class="top"><div class="eyebrow">VIOLET / 05.5</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
   <div id="notice">移动鼠标 · 触碰爱心</div>
   <footer class="footer">
     <div class="toolbar">
@@ -100,6 +100,20 @@
   const streams = [ [-.93,.46,1.1],[-.48,.35,2.4],[0,.26,4.8],[.48,-.37,3.2],[.93,-.48,5.6] ];
   const contour = makeContour();
 
+  const heartShape = `
+float centerY(float y,float r){return .075+(y-.075)*r;}
+vec2 heart(float t){
+  float s=sin(t);
+  return vec2(s*s*s,(-13.0*cos(t)+5.0*cos(2.0*t)+2.0*cos(3.0*t)+cos(4.0*t)-2.4)/16.0);
+}
+float shellDepth(float r,float y){
+  return .78*sqrt(max(0.0,1.0-r*r))*(1.0-max(0.0,y)*.28);
+}
+float moonflow(float a,float t){
+  float wave=.5+.5*cos(3.0*a-t*2.15+.32*sin(2.0*a+t*.42));
+  return smoothstep(.27,.98,wave);
+}`;
+
   const vertexSource = `#version 300 es
 precision highp float;
 layout(location=0) in vec2 aCorner;
@@ -123,16 +137,12 @@ const float PI=3.14159265359;
 vec3 palette(float c){
   if(c<.5) return vec3(.28,.17,.47);
   if(c<1.5) return vec3(.41,.34,.74);
-  if(c<2.5) return vec3(.52,.62,.93);
-  if(c<3.5) return vec3(.78,.86,1.0);
-  if(c<4.5) return vec3(.97,.97,1.0);
+  if(c<2.5) return vec3(.43,.64,1.0);
+  if(c<3.5) return vec3(.69,.86,1.0);
+  if(c<4.5) return vec3(.92,.97,1.0);
   return vec3(.60,.46,.84);
 }
-float centerY(float y,float r){return .075+(y-.075)*r;}
-vec2 heart(float t){
-  float s=sin(t);
-  return vec2(s*s*s,(-13.0*cos(t)+5.0*cos(2.0*t)+2.0*cos(3.0*t)+cos(4.0*t)-2.4)/16.0);
-}
+${heartShape}
 void main(){
   float kind=aExtra.w;
   float alpha=aExtra.z;
@@ -145,6 +155,8 @@ void main(){
   float perspective=1.0;
   float light=1.0;
   float glint=0.0;
+  float rimGlow=0.0;
+  float rimFacing=0.0;
   vKind=kind;
   if(kind>1.5 && kind<2.5){
     // Background stars use normalized screen coordinates, not model coordinates.
@@ -168,18 +180,20 @@ void main(){
                 sin(a)*.28+cos(a)*.18+aStart.x,
                 sin(a)*.72+aTarget.z);
        alpha*=smoothstep(3.0,5.2,uElapsed)*(.67+.33*sin(t*.65+phase));
-       alpha*=.70;
+       alpha*=.48;
        size*=.86;
      } else if(kind>.5 && kind<1.5){
       float a=aTarget.x+t*aMeta.z*.15;
       float r=aTarget.y+sin(t*2.0+phase)*.012;
       vec2 e=heart(a);
-      pos=vec3(e.x*r,centerY(e.y,r),aTarget.z);
-      // Three restrained travelling highlights; no extra particles or passes.
-      float band=pow(.5+.5*cos((a-t*.20)*18.0),11.0);
-      alpha*=.43+.97*band;
-      size*=.92+.31*band;
-      light+=band*.19;
+      float y=centerY(e.y,r);
+      pos=vec3(e.x*r,y,shellDepth(r,y)*aTarget.z);
+      rimGlow=moonflow(a,t);
+      // Angular samples bunch up at the two cusps, so soften their peaks.
+      float spread=smoothstep(.07,.42,abs(sin(a)));
+      alpha*=(.57+1.04*rimGlow)*mix(.50,1.0,spread);
+      size*=1.02+.56*rimGlow*mix(.52,1.0,spread);
+      light+=rimGlow*.23;
       alpha*=smoothstep(2.55,4.2,uElapsed);
     } else if(kind>2.5 && kind<3.5){
       pos.x+=sin(t*.20+phase)*.03;
@@ -214,17 +228,21 @@ void main(){
     clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
      // Grazing key light and front/back attenuation create sculptural volume.
     float facing=smoothstep(-.86,.77,rotated.z);
-    vec3 approxNormal=normalize(vec3(aTarget.x*.32, aTarget.y*.36, sign(aTarget.z)*.91));
+    vec3 localNormal=kind>.5 && kind<1.5
+      ? vec3(pos.x*.9,pos.y*.86,pos.z*1.5)
+      : vec3(aTarget.x*.32,aTarget.y*.36,sign(aTarget.z)*.91);
+    vec3 approxNormal=normalize(localNormal);
     vec3 worldNormal=uRotation*approxNormal;
     float key=max(dot(worldNormal,normalize(vec3(-.42,-.35,.84))),0.0);
     float grazing=pow(1.0-abs(worldNormal.z),2.0);
+    rimFacing=facing;
     if(kind>4.5){
       // Ambient orbit responds to depth but should not inherit the heart skin's heavy back shadow.
       alpha*=.64+.36*smoothstep(-.75,.78,rotated.z);
       light*=.75;
     } else {
-      alpha*=mix(.24,1.10,facing)*(.77+.38*key);
-      light*=.68+.43*key+.19*grazing;
+      alpha*=mix(.28,1.18,facing)*(.79+.39*key);
+      light*=.71+.45*key+.19*grazing;
     }
     if(kind<.5 || (kind>3.5 && kind<4.5)){
       size*=1.075;
@@ -244,10 +262,14 @@ void main(){
     }
   }
   vec3 base=palette(aMeta.w);
+  if(kind>.5 && kind<1.5){
+    vec3 ice=mix(vec3(.35,.61,1.0),vec3(.87,.96,1.0),rimGlow*rimFacing);
+    base=mix(base,ice,rimGlow*(.42+.50*rimFacing));
+  }
   // Keep the deepest layers cool while brightening the top-left catching edge.
   if(kind<.5 || (kind>3.5 && kind<4.5)){
     float pearly=clamp(.5-aTarget.x*.20-aTarget.y*.18,0.0,1.0);
-    base=mix(base,vec3(.91,.95,1.0),pearly*.30);
+    base=mix(base,vec3(.78,.89,1.0),pearly*.36);
   }
   if(kind>1.5 && kind<2.5) base=mix(base,vec3(.54,.56,.82),.34);
     if(kind>5.5 && kind<6.5) base=mix(base,vec3(.92,.97,1.0),.84);
@@ -332,35 +354,36 @@ void main(){
   float cloudA=fbm(drift*1.95+vec2(uTime*.024,-uTime*.015));
   float cloudB=fbm(drift*2.55+vec2(-uTime*.018,uTime*.022));
   float cloudC=fbm(drift*1.35+vec2(uTime*.012,uTime*.009)+vec2(7.3,2.1));
-  // Mist occupies a larger visible range so the nebula veil reads clearly behind the sculpture.
+  // Keep the violet veil at the sides and leave a quiet pocket around the heart.
   float veilA=smoothstep(.14,.39,cloudA-length(uv-vec2(-.10,.03))*.16);
   float veilB=smoothstep(.18,.43,cloudB-length(uv-vec2(.20,-.06))*.19);
   float veilC=smoothstep(.20,.48,cloudC-length(uv-vec2(.02,.16))*.24);
-  float mistA=exp(-pow((uv.y-.19*sin(uv.x*3.0+uTime*.075)-.06)/.125,2.0))
-              * exp(-pow((uv.x+.20)/.70,2.0));
-  float mistB=exp(-pow((uv.y+.13*sin(uv.x*3.7-uTime*.067)+.18)/.135,2.0))
-              * exp(-pow((uv.x-.16)/.80,2.0));
+  float mistA=exp(-pow((uv.y-.12*sin(uv.x*3.0+uTime*.075)+.15)/.135,2.0))
+              * exp(-pow((uv.x+.49)/.53,2.0));
+  float mistB=exp(-pow((uv.y+.14*sin(uv.x*3.7-uTime*.067)+.21)/.140,2.0))
+              * exp(-pow((uv.x-.50)/.54,2.0));
   vec3 c=vec3(.022,.016,.034);
-  c+=vec3(.040,.025,.061)*halo;
+  c+=vec3(.027,.025,.059)*halo;
   c+=vec3(.020,.013,.029)*mauve;
   c+=vec3(.017,.010,.023)*below;
   c+=vec3(.010,.010,.018)*vault;
   c+=vec3(.032,.021,.045)*floorGlow;
   float edgeLiftA=smoothstep(.08,.48,abs(uv.x+.20))*(1.0-smoothstep(.32,.92,abs(uv.y-.02)));
   float edgeLiftB=smoothstep(.10,.50,abs(uv.x-.24))*(1.0-smoothstep(.26,.88,abs(uv.y+.04)));
-  float centerFade=1.0-smoothstep(.06,.40,length(uv*vec2(.86,1.05)));
-  c+=vec3(.050,.048,.102)*veilA*edgeLiftA*(1.0-centerFade*.72);
-  c+=vec3(.040,.042,.096)*veilB*edgeLiftB*(1.0-centerFade*.78);
-  c+=vec3(.030,.040,.086)*veilC*(1.0-centerFade*.82);
-  c+=vec3(.022,.029,.060)*mistA*(1.0-centerFade*.48);
-  c+=vec3(.019,.025,.053)*mistB*(1.0-centerFade*.55);
+  float centerFade=1.0-smoothstep(.10,.57,length(uv*vec2(.87,1.07)));
+  float haze=1.0-centerFade*.91;
+  c+=vec3(.043,.023,.068)*veilA*edgeLiftA*haze;
+  c+=vec3(.030,.027,.066)*veilB*edgeLiftB*haze;
+  c+=vec3(.025,.027,.057)*veilC*haze;
+  c+=vec3(.040,.022,.067)*mistA*veilB*haze;
+  c+=vec3(.025,.030,.065)*mistB*veilA*haze;
   float vignette=1.0-smoothstep(.15,1.3,length(uv));
   c*=.73+.27*vignette;
   c+=(hash(gl_FragCoord.xy)-.5)*.0024;
   outColor=vec4(c,1.0);
 }`;
 
-  // Two three-dimensional luminous ribbons with separate back/front passes.
+  // A surface ribbon and a faint outer orbit share the back/front passes.
   // Their geometry is generated by gl_VertexID; no uploaded ribbon vertices.
   const ribbonVertex = `#version 300 es
 precision highp float;
@@ -374,11 +397,17 @@ out float vSide;
 out float vOpacity;
 out vec3 vTint;
 const float TAU=6.28318530718;
-vec3 orbit(float a,float lane){
-  if(lane<.5){
-    return vec3(1.39*cos(a), .55*sin(a)+.065, .59*sin(a)+.13*cos(a));
+${heartShape}
+vec3 ribbonPoint(float a,bool onHeart,float breath,float levitation,float revealMotion){
+  if(onHeart){
+    float radius=.94+.018*sin(3.0*a+uTime*.85);
+    vec2 edge=heart(a);
+    float y=centerY(edge.y,radius);
+    float depth=shellDepth(radius,y)*.90*cos(a+uTime*.26);
+    return vec3(edge.x*radius*breath,y*breath+levitation,depth);
   }
-  return vec3(1.70*cos(a), .77*sin(a)-.012, -.59*sin(a)+.20*cos(a));
+  float drift=sin(uTime*.28+a*1.3)*.018*revealMotion;
+  return vec3(1.56*cos(a)+drift,.67*sin(a)+levitation,-.59*sin(a)+.20*cos(a));
 }
 vec2 project(vec3 p){
   vec3 r=uRotation*p;
@@ -388,29 +417,26 @@ vec2 project(vec3 p){
 void main(){
   float revealMotion=smoothstep(4.0,6.2,uElapsed);
   float levitation=(sin(uTime*.56)*.026+sin(uTime*.21+1.7)*.012)*revealMotion;
-  float lane=float(gl_InstanceID);
+  float breath=1.0+sin(uTime*1.18)*(.009+.006*revealMotion)*smoothstep(2.0,4.5,uElapsed);
+  bool onHeart=gl_InstanceID==0;
   float stepId=float(gl_VertexID/2);
-  float t=stepId/192.0;
-  float a=t*TAU+uTime*(lane<.5?.085:-.053)+(lane<.5?0.0:1.15);
-  vec3 p=orbit(a,lane);
-  p.y+=levitation;
-  p.x+=sin(uTime*.28+a*1.3)*.028*revealMotion*(lane<.5?1.0:.65);
+  float a=stepId/192.0*TAU+(onHeart?0.0:1.15-uTime*.053);
+  vec3 p=ribbonPoint(a,onHeart,breath,levitation,revealMotion);
   vec3 rotated=uRotation*p;
   vec2 screen=project(p);
-  vec2 screenNext=project(orbit(a+.009,lane));
+  vec2 screenNext=project(ribbonPoint(a+.009,onHeart,breath,levitation,revealMotion));
   vec2 tangent=normalize((screenNext-screen)*uViewport+vec2(1e-6));
   vec2 normal=vec2(-tangent.y,tangent.x);
   float side=mod(float(gl_VertexID),2.0)*2.0-1.0;
-  float widthPx=(lane<.5?9.0:7.0);
-  gl_Position=vec4(screen+normal*(widthPx*side)/uViewport,0.0,1.0);
   float nearest=smoothstep(-.12,.18,rotated.z);
-  float segment=(.38+.62*pow(max(0.0,sin(a*2.25+lane*1.6-uTime*.11)),2.0));
-  float breathing=.83+.17*sin(uTime*.37+lane*2.0);
+  float widthPx=onHeart?mix(7.0,17.0,nearest)*clamp(uUnit/250.0,.62,1.15):7.0;
+  gl_Position=vec4(screen+normal*(widthPx*side)/uViewport,0.0,1.0);
+  float segment=onHeart?pow(moonflow(a,uTime),1.8):smoothstep(.22,.92,sin(a*3.0-uTime*.19));
   float visibility=(uPass<.5?1.0-nearest:nearest);
-  float strength=(lane<.5?1.0:.78);
-  vOpacity=smoothstep(2.9,5.1,uElapsed)*visibility*segment*breathing*strength;
+  float strength=onHeart?mix(.26,.68,nearest):.26;
+  vOpacity=smoothstep(3.5,5.1,uElapsed)*visibility*segment*strength;
   vSide=side;
-  vTint=lane<.5?vec3(.84,.91,1.0):vec3(.60,.74,1.0);
+  vTint=onHeart?mix(vec3(.46,.37,.86),vec3(.54,.77,1.0),nearest):vec3(.46,.55,.85);
 }`;
 
   const ribbonFragment = `#version 300 es
@@ -421,8 +447,8 @@ in vec3 vTint;
 out vec4 outColor;
 void main(){
   float halo=exp(-pow(vSide*1.9,2.0));
-  float core=exp(-pow(vSide*9.0,2.0));
-  float opacity=(.20*halo+.76*core)*vOpacity;
+  float core=exp(-pow(vSide*4.6,2.0));
+  float opacity=(.24*halo+.36*core)*vOpacity;
   outColor=vec4(vTint*(.45+.55*core),opacity);
 }`;
 
@@ -475,12 +501,12 @@ void main(){
   float reveal=smoothstep(1.65,4.15,uElapsed);
   // Muted amethyst with diffuse volume and a grazing rim, not a luminous decal.
   vec3 ink=vec3(.040,.026,.082);
-  ink+=vec3(.073,.076,.156)*key;
-  ink+=vec3(.022,.026,.060)*fill;
-  ink+=vec3(.062,.068,.132)*edge;
+  ink+=vec3(.087,.105,.192)*key;
+  ink+=vec3(.027,.046,.102)*fill;
+  ink+=vec3(.066,.086,.164)*edge;
   // Broad soft specular and edge transmission keep the shell from reading as a flat sticker.
   float pearl=pow(max(dot(n,normalize(vec3(-.62,-.22,.92))),0.0),18.0);
-  ink+=vec3(.084,.092,.152)*pearl;
+  ink+=vec3(.123,.161,.225)*pearl;
   ink*=mix(.91,1.15,clamp(length(vPos.xy)/1.15,0.0,1.0));
   ink*=.965+.035*sin(vPos.x*73.0+vPos.y*31.0)*sin(vPos.y*67.0);
   float cavity=1.0-smoothstep(.10,.88,length(body.xy*vec2(.96,1.08)));
@@ -573,8 +599,8 @@ void main(){
     // Rim points cycle around the contour in opposite directions; their positions are evaluated in the GPU.
     for(let i=0;i<opt.rim;i++){
       const e=contour[Math.floor(rand()*contour.length)];
-      const layer=i%4===0?-1:between(.1,.9);
-      add([e.a,between(.91,1.04),layer*.42],[0,0,0],between(5.0,11.5),between(0,TAU),i%4===0?between(-.8,-.35):between(.35,.9),i%5===0?5:between(1,4)|0,0,1,between(.35,.86),1);
+      const layer=i%4===0?-1:between(.42,.99);
+      add([e.a,between(.865,1.035),layer],[0,0,0],between(5.2,12),between(0,TAU),i%4===0?between(-.8,-.35):between(.35,.9),i%5===0?5:between(1,4)|0,0,1,between(.35,.86),1);
     }
     for(let i=0;i<opt.stars;i++){
       add([rand(),rand(),0],[0,0,0],between(1.3,4.0),between(0,TAU),1,rand()>.84?4:1,0,1,between(.10,.34),2);
@@ -739,7 +765,7 @@ void main(){
     gl.uniform2f(backgroundUniforms.uResolution,canvas.width,canvas.height);
     gl.uniform1f(backgroundUniforms.uTime,t);
     gl.drawArrays(gl.TRIANGLES,0,3);
-      // Draw the rear halves before the translucent heart body.
+      // Draw the rear light before the translucent heart body.
       gl.enable(gl.BLEND);
       gl.blendEquation(gl.FUNC_ADD);
       gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
@@ -757,7 +783,7 @@ void main(){
      gl.uniform1f(surfaceUniforms.uTime,t);
      gl.uniformMatrix3fv(surfaceUniforms.uRotation,false,pose);
      gl.drawElements(gl.TRIANGLES,surfaceIndexCount,gl.UNSIGNED_SHORT,0);
-     // Bright foreground ribbons travel in front of the now-shaded heart.
+     // Near-side light sits above the shaded heart.
      gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
      drawRibbons(1.0,pose);
      gl.useProgram(program);
