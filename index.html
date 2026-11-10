@@ -42,7 +42,7 @@
 <body>
 <main aria-label="紫色心跳 WebGL 粒子雕塑">
   <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
-  <header class="top"><div class="eyebrow">VIOLET / 02</div><h1>紫色心跳</h1><div class="subtitle">A STUDY IN LIGHT &amp; MOTION</div></header>
+  <header class="top"><div class="eyebrow">VIOLET / 03</div><h1>紫色心跳</h1><div class="subtitle">A SCULPTURE OF LIGHT</div></header>
   <div id="notice">移动鼠标 · 触碰爱心</div>
   <footer class="footer">
     <div class="toolbar">
@@ -64,7 +64,7 @@
 <script>
 'use strict';
 
-// Violet / 02 — dependency-free WebGL2 particle sculpture.
+// Violet / 03 — dependency-free WebGL2 particle sculpture.
 // Canonical WebGL2 viewer, rendered at the site root.
 (() => {
   const canvas = document.getElementById('scene');
@@ -91,6 +91,7 @@
   let tier = 'medium', auto = true, running = !reducedMotion.matches;
   let elapsed = reducedMotion.matches ? 8 : 0;
   let clock = 0, lastTime = 0, pulseTime = -100;
+  let pulseX = 0, pulseY = .065;
   let width = 1, height = 1, pixelRatio = 1, unit = 200;
   let mouseX = 0, mouseY = 0, smoothX = 0, smoothY = 0;
   let raf = 0, fpsWindow = 0, frames = 0, slowWindows = 0, fastWindows = 0, lastTierChange = 0;
@@ -110,18 +111,20 @@ uniform float uUnit;
 uniform float uElapsed;
 uniform float uTime;
 uniform float uPulseAge;
+uniform vec2 uPulseOrigin;
 uniform mat3 uRotation;
 out vec2 vUv;
 out vec3 vColor;
 out float vAlpha;
+out float vGlint;
 const float PI=3.14159265359;
 vec3 palette(float c){
-  if(c<.5) return vec3(.40,.20,.67);
-  if(c<1.5) return vec3(.60,.35,.88);
-  if(c<2.5) return vec3(.75,.54,.97);
-  if(c<3.5) return vec3(.91,.72,.99);
-  if(c<4.5) return vec3(1.0,.90,1.0);
-  return vec3(.89,.42,.78);
+  if(c<.5) return vec3(.31,.17,.48);
+  if(c<1.5) return vec3(.49,.32,.72);
+  if(c<2.5) return vec3(.68,.50,.85);
+  if(c<3.5) return vec3(.83,.67,.95);
+  if(c<4.5) return vec3(.98,.85,1.0);
+  return vec3(.78,.43,.71);
 }
 float centerY(float y,float r){return .075+(y-.075)*r;}
 vec2 heart(float t){
@@ -138,6 +141,8 @@ void main(){
   vUv=aCorner;
   vec2 clip;
   float perspective=1.0;
+  float light=1.0;
+  float glint=0.0;
   if(kind>1.5 && kind<2.5){
     // Background stars use normalized screen coordinates, not model coordinates.
     clip=aTarget.xy*2.0-1.0;
@@ -149,9 +154,11 @@ void main(){
       float r=aTarget.y+sin(t*2.0+phase)*.012;
       vec2 e=heart(a);
       pos=vec3(e.x*r,centerY(e.y,r),aTarget.z);
-      float band=pow(.5+.5*cos((a-t*.23)*18.0),8.0);
-      alpha*=.36+.76*band;
-      size*=1.0+.3*band;
+      // Three restrained travelling highlights; no extra particles or passes.
+      float band=pow(.5+.5*cos((a-t*.20)*18.0),11.0);
+      alpha*=.43+.97*band;
+      size*=.92+.31*band;
+      light+=band*.19;
       alpha*=smoothstep(2.55,4.2,uElapsed);
     } else if(kind>2.5 && kind<3.5){
       pos.x+=sin(t*.20+phase)*.03;
@@ -161,6 +168,8 @@ void main(){
     } else {
       float local=clamp((uElapsed-aExtra.x)/max(aExtra.y,.1),0.0,1.0);
       float progress=local*local*(3.0-2.0*local);
+      // A slight settling motion at the end of the gathering, without extra physics.
+      progress+=.014*sin(PI*clamp((local-.75)/.25,0.0,1.0))*smoothstep(.72,.87,local);
       float curl=sin(PI*local)*pow(1.0-local,.5);
       pos=mix(aStart,aTarget,progress);
       pos.x+=curl*(sin(local*8.0+phase)*.27 +sin(local*6.2831853)*aStart.z*.17);
@@ -178,23 +187,41 @@ void main(){
     vec3 rotated=uRotation*pos;
     perspective=1.0/(1.0-rotated.z*.22);
     clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
-    // Light direction is slightly upper-left, with back surface darker.
-    float facing=clamp(.68+rotated.z*.46, .28,1.18);
-    float topLight=clamp(.94-rotated.y*.16-rotated.x*.13,.72,1.15);
-    alpha*=facing*topLight;
-    if(kind<.5){
-      float radial=length(aTarget.xy);
-      if(uPulseAge>=0.0 && uPulseAge<1.75){
-        float front=uPulseAge*.88;
-        float pulse=exp(-pow((radial-front)*15.0,2.0))*exp(-uPulseAge*.8);
-        alpha+=pulse*.42;
-        size*=1.0+pulse*.85;
+     // Grazing key light and front/back attenuation create sculptural volume.
+    float facing=smoothstep(-.80,.93,rotated.z);
+    vec3 approxNormal=normalize(vec3(aTarget.x*.32, aTarget.y*.36, sign(aTarget.z)*.91));
+    vec3 worldNormal=uRotation*approxNormal;
+    float key=max(dot(worldNormal,normalize(vec3(-.42,-.35,.84))),0.0);
+    float grazing=pow(1.0-abs(worldNormal.z),2.0);
+    alpha*=mix(.46,1.18,facing)*(.80+.37*key);
+    light*=.82+.33*key+.15*grazing;
+    if(kind<.5 || kind>3.5){
+      size*=1.075;
+      // Click ripple is centered on the actual pointer location in screen space.
+      if(uPulseAge>=0.0 && uPulseAge<1.65){
+        float distanceToTap=length((clip-uPulseOrigin)*uViewport/(uUnit*2.0));
+        float wave=exp(-pow((distanceToTap-uPulseAge*.91)*10.5,2.0));
+        float pulse=wave*(1.0-smoothstep(.65,1.65,uPulseAge));
+        alpha+=pulse*.31;
+        size*=1.0+pulse*.62;
+      }
+      if(kind>3.5){
+        glint=pow(max(0.0,sin(t*aMeta.z+phase)),16.0)*smoothstep(3.0,4.3,uElapsed);
+        alpha*=.25+.98*glint;
+        size*=.90+.30*glint;
       }
     }
   }
-  vColor=palette(aMeta.w);
-  if(kind>1.5 && kind<2.5) vColor=mix(vColor,vec3(.62,.46,.80),.24);
+  vec3 base=palette(aMeta.w);
+  // Keep the deepest layers cool while brightening the top-left catching edge.
+  if(kind<.5 || kind>3.5){
+    float pearly=clamp(.5-aTarget.x*.20-aTarget.y*.18,0.0,1.0);
+    base=mix(base,vec3(.95,.82,1.0),pearly*.18);
+  }
+  if(kind>1.5 && kind<2.5) base=mix(base,vec3(.55,.45,.75),.27);
+  vColor=base*light;
   vAlpha=alpha;
+  vGlint=glint;
   // World-space particles remain circular in screen space while sculpture rotates.
   vec2 delta=aCorner*size*perspective/uViewport;
   gl_Position=vec4(clip+delta,0.0,1.0);
@@ -205,15 +232,22 @@ precision highp float;
 in vec2 vUv;
 in vec3 vColor;
 in float vAlpha;
+in float vGlint;
 out vec4 outColor;
 void main(){
   float r2=dot(vUv,vUv);
   if(r2>1.0) discard;
-  float core=exp(-r2*17.0);
-  float haze=exp(-r2*3.5);
-  float falloff=1.0-smoothstep(.6,1.0,r2);
-  float opacity=(.80*core+.20*haze)*falloff*vAlpha;
-  outColor=vec4(vColor*(.73+.35*core),opacity);
+  float core=exp(-r2*19.0);
+  float haze=exp(-r2*4.2);
+  float falloff=1.0-smoothstep(.55,1.0,r2);
+  float opacity=(.78*core+.22*haze)*falloff*vAlpha;
+  // Sparse four-point crystalline accents, only visible at glint peaks.
+  if(vGlint>.01){
+    float horizontal=exp(-abs(vUv.y)*25.0)*pow(max(0.0,1.0-abs(vUv.x)),5.0);
+    float vertical=exp(-abs(vUv.x)*25.0)*pow(max(0.0,1.0-abs(vUv.y)),5.0);
+    opacity+=(horizontal+vertical)*.19*vGlint*vAlpha;
+  }
+  outColor=vec4(vColor*(.72+.40*core),opacity);
 }`;
 
   const backgroundVertex = `#version 300 es
@@ -232,11 +266,13 @@ void main(){
   uv.x*=uResolution.x/uResolution.y;
   float halo=exp(-dot(uv-vec2(0.0,.035),uv-vec2(0.0,.035))*5.5);
   float mauve=exp(-dot((uv-vec2(.22,-.1))*vec2(1.3,1.6),(uv-vec2(.22,-.1))*vec2(1.3,1.6))*10.0);
-  float below=exp(-dot((uv-vec2(-.06,-.43))*vec2(.9,1.8),(uv-vec2(-.06,-.43))*vec2(.9,1.8))*7.0);
-  vec3 c=vec3(.026,.018,.041);
-  c+=vec3(.056,.026,.082)*halo;
-  c+=vec3(.032,.011,.043)*mauve;
-  c+=vec3(.025,.007,.032)*below;
+  float below=exp(-dot((uv-vec2(-.06,-.40))*vec2(.9,1.8),(uv-vec2(-.06,-.40))*vec2(.9,1.8))*7.0);
+  float vault=exp(-dot((uv-vec2(-.06,.12))*vec2(.80,1.14),(uv-vec2(-.06,.12))*vec2(.80,1.14))*6.4);
+  vec3 c=vec3(.023,.017,.036);
+  c+=vec3(.045,.024,.067)*halo;
+  c+=vec3(.028,.013,.035)*mauve;
+  c+=vec3(.027,.010,.032)*below;
+  c+=vec3(.012,.009,.018)*vault;
   float vignette=1.0-smoothstep(.15,1.3,length(uv));
   c*=.73+.27*vignette;
   c+=(noise(gl_FragCoord.xy)-.5)*.0024;
@@ -291,7 +327,7 @@ void main(){
     const add=(target,start,size,phase,speed,hue,delay,duration,alpha,kind)=>{
       data.push(...target,...start,size,phase,speed,hue,delay,duration,alpha,kind);
     };
-    const shell=(u,r,side,alpha,size,overrideHue)=>{
+    const shell=(u,r,side,alpha,size,overrideHue,kind=0)=>{
       const index=Math.min(1023,Math.floor(((u%1+1)%1)*1024));
       const edge=contour[index];
       const x=edge.x*r,y=centerY+(edge.y-centerY)*r;
@@ -302,7 +338,7 @@ void main(){
       const stream=streams[Math.floor(rand()*streams.length)];
       const start=[stream[0]+between(-.22,.22),between(2.3,3.65),stream[1]+between(-.8,.8)];
       const phase=between(0,TAU),speed=between(.65,2.0);
-      add([x,y,z],start,size,phase,speed,hue,between(0,1.04)+Math.abs(stream[0])*.18,between(1.65,2.75)+(.9-y)*.47,alpha,0);
+      add([x,y,z],start,size,phase,speed,hue,between(0,1.04)+Math.abs(stream[0])*.18,between(1.65,2.75)+(.9-y)*.47,alpha,kind);
     };
     for(let i=0;i<opt.shell;i++){
       const rim=i%5===0;
@@ -319,7 +355,7 @@ void main(){
       }
     }
     // Sparse glints on the visible shell.
-    for(let i=0;i<Math.max(12,Math.floor(opt.shell/180));i++) shell(rand(),between(.75,1.02),1,between(.6,.95),between(8,15),4);
+    for(let i=0;i<Math.max(12,Math.floor(opt.shell/180));i++) shell(rand(),between(.75,1.02),1,between(.6,.95),between(8,15),4,4);
     // Rim points cycle around the contour in opposite directions; their positions are evaluated in the GPU.
     for(let i=0;i<opt.rim;i++){
       const e=contour[Math.floor(rand()*contour.length)];
@@ -346,11 +382,11 @@ void main(){
   }
   function initialize(){
     gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,premultipliedAlpha:false,powerPreference:'high-performance'});
-    if(!gl){showError('浏览器没有可用的 WebGL 2 环境。可以更新显卡驱动、开启硬件加速，或直接观看 Canvas 原版。');return false;}
+    if(!gl){showError('浏览器没有可用的 WebGL 2 环境。请更新显卡驱动并尝试开启硬件加速。');return false;}
     // Report compiling errors visibly instead of leaving the canvas black.
     program=makeProgram(vertexSource,fragmentSource);
     backgroundProgram=makeProgram(backgroundVertex,backgroundFragment);
-    particleUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uPulseAge','uRotation'].map(name=>[name,gl.getUniformLocation(program,name)]));
+    particleUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uPulseAge','uPulseOrigin','uRotation'].map(name=>[name,gl.getUniformLocation(program,name)]));
     backgroundUniforms=Object.fromEntries(['uResolution','uTime'].map(name=>[name,gl.getUniformLocation(backgroundProgram,name)]));
     vao=gl.createVertexArray();gl.bindVertexArray(vao);
     const corners=new Float32Array([-1,-1,1,-1,-1,1,1,1]);
@@ -413,6 +449,7 @@ void main(){
     gl.uniform1f(particleUniforms.uElapsed,elapsed);
     gl.uniform1f(particleUniforms.uTime,t);
     gl.uniform1f(particleUniforms.uPulseAge,pulseTime<0?-1:clock-pulseTime);
+    gl.uniform2f(particleUniforms.uPulseOrigin,pulseX,pulseY);
     gl.uniformMatrix3fv(particleUniforms.uRotation,false,rotation(yaw,pitch,roll));
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,particleCount);
     gl.bindVertexArray(null);
@@ -457,7 +494,7 @@ void main(){
     if(!hidden){cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}
   }
   function reset(){
-    elapsed=0;clock=0;pulseTime=-100;
+    elapsed=0;clock=0;pulseTime=-100;pulseX=0;pulseY=.065;
     if(!running)run();
     render();
   }
@@ -468,9 +505,12 @@ void main(){
     mouseY=Math.max(-1,Math.min(1,((e.clientY-r.top)/r.height-.5)*-2));
   },{passive:true});
   canvas.addEventListener('pointerleave',()=>{mouseX=mouseY=0;});
-  canvas.addEventListener('pointerdown',()=>{
+  canvas.addEventListener('pointerdown',event=>{
     notice.hidden=true;
     if(!running)run();
+    const r=canvas.getBoundingClientRect();
+    pulseX=((event.clientX-r.left)/r.width)*2-1;
+    pulseY=1-((event.clientY-r.top)/r.height)*2;
     pulseTime=clock;
   },{passive:true});
   replayButton.addEventListener('click',reset);
