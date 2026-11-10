@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08060e">
-  <meta name="description" content="紫色心跳 · GPU 星尘、增强星云薄纱与蓝紫梦境雕塑，原生 WebGL2 与自适应画质。">
+  <meta name="description" content="紫色心跳 · GPU 星尘、轻盈星云薄纱与蓝白月光点缀的梦境雕塑，原生 WebGL2 与自适应画质。">
   <title>紫色心跳 · WebGL</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c7a2e6' d='M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z'/%3E%3C/svg%3E">
   <style>
@@ -42,7 +42,7 @@
 <body>
 <main aria-label="紫色心跳 WebGL 粒子雕塑">
   <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
-  <header class="top"><div class="eyebrow">VIOLET / 05.3</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
+  <header class="top"><div class="eyebrow">VIOLET / 05.4</div><h1>紫色心跳</h1><div class="subtitle">AMETHYST / IN A DREAM</div></header>
   <div id="notice">移动鼠标 · 触碰爱心</div>
   <footer class="footer">
     <div class="toolbar">
@@ -64,7 +64,7 @@
 <script>
 'use strict';
 
-// Violet / 05.1 — stronger nebula veils + floating post-intro motion + cooler blue-violet grading.
+// Violet / 05.1 — lighter layered veils + cleaner background + stronger moonlit blue-white accents.
 // Canonical WebGL2 viewer, rendered at the site root.
 (() => {
   const canvas = document.getElementById('scene');
@@ -122,11 +122,11 @@ out float vKind;
 const float PI=3.14159265359;
 vec3 palette(float c){
   if(c<.5) return vec3(.28,.17,.47);
-  if(c<1.5) return vec3(.43,.33,.73);
-  if(c<2.5) return vec3(.50,.56,.88);
-  if(c<3.5) return vec3(.70,.76,.97);
-  if(c<4.5) return vec3(.94,.92,1.0);
-  return vec3(.62,.44,.82);
+  if(c<1.5) return vec3(.41,.34,.74);
+  if(c<2.5) return vec3(.52,.62,.93);
+  if(c<3.5) return vec3(.78,.86,1.0);
+  if(c<4.5) return vec3(.97,.97,1.0);
+  return vec3(.60,.46,.84);
 }
 float centerY(float y,float r){return .075+(y-.075)*r;}
 vec2 heart(float t){
@@ -247,10 +247,10 @@ void main(){
   // Keep the deepest layers cool while brightening the top-left catching edge.
   if(kind<.5 || (kind>3.5 && kind<4.5)){
     float pearly=clamp(.5-aTarget.x*.20-aTarget.y*.18,0.0,1.0);
-    base=mix(base,vec3(.95,.82,1.0),pearly*.18);
+    base=mix(base,vec3(.91,.95,1.0),pearly*.30);
   }
-  if(kind>1.5 && kind<2.5) base=mix(base,vec3(.55,.45,.75),.27);
-    if(kind>5.5 && kind<6.5) base=mix(base,vec3(.86,.92,1.0),.72);
+  if(kind>1.5 && kind<2.5) base=mix(base,vec3(.54,.56,.82),.34);
+    if(kind>5.5 && kind<6.5) base=mix(base,vec3(.92,.97,1.0),.84);
     // Back-facing grains lose saturation so the front reads as a coherent surface.
    if(kind<.5 || (kind>3.5 && kind<4.5)){
      float nearFace=smoothstep(-.45,.80,(uRotation*aTarget).z);
@@ -341,16 +341,19 @@ void main(){
   float mistB=exp(-pow((uv.y+.13*sin(uv.x*3.7-uTime*.067)+.18)/.135,2.0))
               * exp(-pow((uv.x-.16)/.80,2.0));
   vec3 c=vec3(.022,.016,.034);
-  c+=vec3(.045,.024,.067)*halo;
-  c+=vec3(.028,.013,.035)*mauve;
-  c+=vec3(.027,.010,.032)*below;
-  c+=vec3(.012,.009,.018)*vault;
-  c+=vec3(.048,.021,.061)*floorGlow;
-  c+=vec3(.074,.061,.128)*veilA;
-  c+=vec3(.056,.050,.110)*veilB;
-  c+=vec3(.040,.046,.093)*veilC;
-  c+=vec3(.033,.036,.074)*mistA;
-  c+=vec3(.028,.031,.064)*mistB;
+  c+=vec3(.040,.025,.061)*halo;
+  c+=vec3(.020,.013,.029)*mauve;
+  c+=vec3(.017,.010,.023)*below;
+  c+=vec3(.010,.010,.018)*vault;
+  c+=vec3(.032,.021,.045)*floorGlow;
+  float edgeLiftA=smoothstep(.08,.48,abs(uv.x+.20))*(1.0-smoothstep(.32,.92,abs(uv.y-.02)));
+  float edgeLiftB=smoothstep(.10,.50,abs(uv.x-.24))*(1.0-smoothstep(.26,.88,abs(uv.y+.04)));
+  float centerFade=1.0-smoothstep(.06,.40,length(uv*vec2(.86,1.05)));
+  c+=vec3(.050,.048,.102)*veilA*edgeLiftA*(1.0-centerFade*.72);
+  c+=vec3(.040,.042,.096)*veilB*edgeLiftB*(1.0-centerFade*.78);
+  c+=vec3(.030,.040,.086)*veilC*(1.0-centerFade*.82);
+  c+=vec3(.022,.029,.060)*mistA*(1.0-centerFade*.48);
+  c+=vec3(.019,.025,.053)*mistB*(1.0-centerFade*.55);
   float vignette=1.0-smoothstep(.15,1.3,length(uv));
   c*=.73+.27*vignette;
   c+=(hash(gl_FragCoord.xy)-.5)*.0024;
@@ -407,7 +410,7 @@ void main(){
   float strength=(lane<.5?1.0:.78);
   vOpacity=smoothstep(2.9,5.1,uElapsed)*visibility*segment*breathing*strength;
   vSide=side;
-  vTint=lane<.5?vec3(.72,.78,1.0):vec3(.48,.58,.96);
+  vTint=lane<.5?vec3(.84,.91,1.0):vec3(.60,.74,1.0);
 }`;
 
   const ribbonFragment = `#version 300 es
@@ -471,13 +474,13 @@ void main(){
   float front=smoothstep(-.35,.80,n.z);
   float reveal=smoothstep(1.65,4.15,uElapsed);
   // Muted amethyst with diffuse volume and a grazing rim, not a luminous decal.
-  vec3 ink=vec3(.043,.026,.080);
-  ink+=vec3(.079,.068,.148)*key;
-  ink+=vec3(.020,.020,.051)*fill;
-  ink+=vec3(.058,.053,.114)*edge;
+  vec3 ink=vec3(.040,.026,.082);
+  ink+=vec3(.073,.076,.156)*key;
+  ink+=vec3(.022,.026,.060)*fill;
+  ink+=vec3(.062,.068,.132)*edge;
   // Broad soft specular and edge transmission keep the shell from reading as a flat sticker.
   float pearl=pow(max(dot(n,normalize(vec3(-.62,-.22,.92))),0.0),18.0);
-  ink+=vec3(.070,.064,.116)*pearl;
+  ink+=vec3(.084,.092,.152)*pearl;
   ink*=mix(.91,1.15,clamp(length(vPos.xy)/1.15,0.0,1.0));
   ink*=.965+.035*sin(vPos.x*73.0+vPos.y*31.0)*sin(vPos.y*67.0);
   float cavity=1.0-smoothstep(.10,.88,length(body.xy*vec2(.96,1.08)));
