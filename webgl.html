@@ -86,6 +86,7 @@
   const TAU = Math.PI * 2;
   const centerY = .075;
   let gl, program, backgroundProgram, vao, buffer, fullscreenVao;
+  let particleUniforms, backgroundUniforms;
   let particleCount = 0;
   let tier = 'medium', auto = true, running = !reducedMotion.matches;
   let elapsed = reducedMotion.matches ? 8 : 0;
@@ -349,6 +350,8 @@ void main(){
     // Report compiling errors visibly instead of leaving the canvas black.
     program=makeProgram(vertexSource,fragmentSource);
     backgroundProgram=makeProgram(backgroundVertex,backgroundFragment);
+    particleUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uPulseAge','uRotation'].map(name=>[name,gl.getUniformLocation(program,name)]));
+    backgroundUniforms=Object.fromEntries(['uResolution','uTime'].map(name=>[name,gl.getUniformLocation(backgroundProgram,name)]));
     vao=gl.createVertexArray();gl.bindVertexArray(vao);
     const corners=new Float32Array([-1,-1,1,-1,-1,1,1,1]);
     const cornerBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cornerBuffer);
@@ -397,20 +400,20 @@ void main(){
     gl.disable(gl.BLEND);
     gl.useProgram(backgroundProgram);
     gl.bindVertexArray(fullscreenVao);
-    gl.uniform2f(gl.getUniformLocation(backgroundProgram,'uResolution'),canvas.width,canvas.height);
-    gl.uniform1f(gl.getUniformLocation(backgroundProgram,'uTime'),t);
+    gl.uniform2f(backgroundUniforms.uResolution,canvas.width,canvas.height);
+    gl.uniform1f(backgroundUniforms.uTime,t);
     gl.drawArrays(gl.TRIANGLES,0,3);
     gl.enable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
     gl.useProgram(program);
     gl.bindVertexArray(vao);
-    gl.uniform2f(gl.getUniformLocation(program,'uViewport'),width,height);
-    gl.uniform1f(gl.getUniformLocation(program,'uUnit'),unit);
-    gl.uniform1f(gl.getUniformLocation(program,'uElapsed'),elapsed);
-    gl.uniform1f(gl.getUniformLocation(program,'uTime'),t);
-    gl.uniform1f(gl.getUniformLocation(program,'uPulseAge'),pulseTime<0?-1:clock-pulseTime);
-    gl.uniformMatrix3fv(gl.getUniformLocation(program,'uRotation'),false,rotation(yaw,pitch,roll));
+    gl.uniform2f(particleUniforms.uViewport,width,height);
+    gl.uniform1f(particleUniforms.uUnit,unit);
+    gl.uniform1f(particleUniforms.uElapsed,elapsed);
+    gl.uniform1f(particleUniforms.uTime,t);
+    gl.uniform1f(particleUniforms.uPulseAge,pulseTime<0?-1:clock-pulseTime);
+    gl.uniformMatrix3fv(particleUniforms.uRotation,false,rotation(yaw,pitch,roll));
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,particleCount);
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
@@ -450,6 +453,7 @@ void main(){
     if(disposed||!gl)return;
     running=true;lastTime=0;fpsWindow=0;frames=0;
     playButton.textContent='Ⅱ 暂停';playButton.setAttribute('aria-label','暂停动画');
+    fpsLabel.textContent='— FPS';
     if(!hidden){cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}
   }
   function reset(){
