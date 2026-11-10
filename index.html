@@ -2,87 +2,518 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#090610">
-  <meta name="description" content="一颗由紫色星尘汇聚而成、不断跳动的爱心。">
-  <title>紫色心跳</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c88bff' d='M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z'/%3E%3C/svg%3E">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08060e">
+  <meta name="description" content="紫色心跳 · GPU 粒子雕塑，使用原生 WebGL2 和自适应画质。">
+  <title>紫色心跳 · WebGL</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c7a2e6' d='M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z'/%3E%3C/svg%3E">
   <style>
-    :root { color-scheme: dark; background: #090610; }
-    * { box-sizing: border-box; }
-    [hidden] { display: none !important; }
-    body { margin: 0; font-family: system-ui, sans-serif; }
-    main {
-      position: relative;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      isolation: isolate;
-      background:
-        radial-gradient(ellipse at 50% 44%, #1d1029 0%, #110a1c 34%, transparent 68%),
-        radial-gradient(ellipse at 70% 90%, #110819, #08060e 68%);
-    }
-    canvas { display: block; width: 100%; height: 100%; }
-    button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-    button:focus-visible { outline: 1px solid #dcb5ff; outline-offset: 5px; }
-    .heart {
-      position: absolute;
-      left: 50%;
-      top: 47%;
-      width: min(70vw, 57vh, 490px);
-      aspect-ratio: 1.15;
-      transform: translate(-50%, -50%);
-      border: 0;
-      border-radius: 48%;
-      background: transparent;
-      cursor: pointer;
-    }
-    .replay {
-      position: absolute;
-      bottom: max(clamp(24px, 6vh, 62px), calc(env(safe-area-inset-bottom) + 16px));
-      left: 50%;
-      transform: translateX(-50%);
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      min-height: 44px;
-      padding: 0 17px;
-      border: 1px solid #b991e330;
-      border-radius: 99px;
-      background: #190f23b3;
-      color: #cbb8df;
-      font-size: 12px;
-      letter-spacing: .16em;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: background .25s, border-color .25s, color .25s;
-    }
-    .replay:hover { background: #281637; border-color: #b991e370; color: #f3e4ff; }
-    .replay svg { width: 14px; height: 14px; }
-    @media (prefers-reduced-motion: reduce) { .replay { transition: none; } }
-    .fallback {
-      position: absolute;
-      left: 50%;
-      top: 47%;
-      width: min(74vw, 60vh, 500px);
-      transform: translate(-50%, -50%);
-      filter: drop-shadow(0 0 30px #a45ffb80);
-    }
+    :root {color-scheme:dark;--text:#e9dff0;--muted:#af9bbf;--line:#9983ae38;--surface:#1d1425b9;background:#08060e}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0}
+    body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;color:var(--text)}
+    main{position:relative;width:100%;height:100vh;height:100dvh;isolation:isolate;background:radial-gradient(ellipse at 50% 47%,#1b1124,#08060e 73%);overflow:hidden}
+    #scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:manipulation}
+    .top{position:absolute;z-index:2;top:clamp(20px,5vh,52px);left:clamp(20px,5vw,64px);pointer-events:none}
+    .eyebrow{font-size:10px;letter-spacing:.34em;color:#ad94c0;opacity:.89}
+    h1{margin:11px 0 0;font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(23px,2.4vw,34px);letter-spacing:.13em}
+    .subtitle{margin:11px 0 0;color:#a38fb4;font-size:10px;letter-spacing:.21em}
+    .footer{position:absolute;z-index:3;left:clamp(16px,3.8vw,54px);right:clamp(16px,3.8vw,54px);bottom:max(18px,env(safe-area-inset-bottom) + 12px);display:flex;align-items:end;justify-content:space-between;gap:12px;pointer-events:none}
+    .toolbar,.status{display:flex;flex-wrap:wrap;align-items:center;gap:9px;pointer-events:auto}
+    .tool{border:1px solid var(--line);background:var(--surface);border-radius:50px;padding:0 16px;min-height:40px;display:inline-flex;align-items:center;gap:8px;color:var(--text);font-size:11px;letter-spacing:.1em;text-decoration:none;cursor:pointer;backdrop-filter:blur(9px);transition:background .2s,border-color .2s;white-space:nowrap}
+    .tool:hover{background:#30223cdb;border-color:#bca2d887}
+    .tool:focus-visible,select:focus-visible{outline:2px solid #d9b6f5;outline-offset:3px}
+    .status{color:#9987a8;font-size:10px;letter-spacing:.1em;justify-content:end}
+    .indicator{width:5px;height:5px;border-radius:50%;background:#b58ed0;box-shadow:0 0 8px #bf8fea99}
+    .pill{display:flex;align-items:center;gap:8px;background:#180f22a8;border:1px solid #9983ae25;padding:8px 12px;border-radius:30px;backdrop-filter:blur(9px)}
+    select{appearance:none;border:0;outline:0;background:none;color:var(--text);font:inherit;cursor:pointer;letter-spacing:inherit;padding:2px 8px 2px 1px}
+    select option{color:#e9dff0;background:#21182b}
+    #fps{font-variant-numeric:tabular-nums;min-width:51px;text-align:right}
+    #notice{position:absolute;left:50%;top:73%;transform:translateX(-50%);z-index:3;white-space:nowrap;font-size:10px;color:#d9bbf1aa;letter-spacing:.17em;pointer-events:none;transition:opacity .6s}
+    #notice[hidden]{display:none}
+    #error{display:none;position:absolute;z-index:4;inset:0;align-items:center;justify-content:center;background:radial-gradient(circle,#24122d,#08060e 70%);padding:24px;text-align:center}
+    #error.show{display:flex}
+    .error-content{max-width:400px}.error-heart{font-size:96px;color:#bb87e9;text-shadow:0 0 50px #8e49d0}
+    .error-content p{line-height:1.8;color:#bba7ca;font-size:13px}
+    @media(max-width:720px){.subtitle{display:none}.footer{flex-direction:column-reverse;align-items:center;bottom:max(14px,env(safe-area-inset-bottom) + 10px)}.status{justify-content:center}.toolbar{justify-content:center}.tool{min-height:40px;padding:0 13px}.top{top:24px;left:24px}#notice{top:78%}}
+    @media(prefers-reduced-motion:reduce){.tool{transition:none}#notice{transition:none}}
   </style>
 </head>
 <body>
-  <main aria-label="紫色心跳">
-    <canvas aria-hidden="true"></canvas>
-    <button class="heart" type="button" aria-label="触碰爱心" hidden></button>
-    <button class="replay" type="button" hidden>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6m-2-6V5m0 6h6"/></svg>
-      重播
-    </button>
-    <svg class="fallback" viewBox="0 0 32 32" role="img" aria-label="紫色爱心">
-      <defs><linearGradient id="violet" x2="1" y2="1"><stop stop-color="#e4c6ff"/><stop offset="1" stop-color="#8744cf"/></linearGradient></defs>
-      <path fill="url(#violet)" d="M16 29C11 24 2 19 2 11a7.5 7.5 0 0 1 14-4 7.5 7.5 0 0 1 14 4c0 8-9 13-14 18Z"/>
-    </svg>
-  </main>
-  <script src="heart.js?v=4" defer></script>
+<main aria-label="紫色心跳 WebGL 粒子雕塑">
+  <canvas id="scene" aria-label="紫色爱心粒子动画，点击可产生一圈涟漪"></canvas>
+  <header class="top"><div class="eyebrow">VIOLET / 02</div><h1>紫色心跳</h1><div class="subtitle">A STUDY IN LIGHT &amp; MOTION</div></header>
+  <div id="notice">移动鼠标 · 触碰爱心</div>
+  <footer class="footer">
+    <div class="toolbar">
+      <button id="replay" class="tool" type="button" aria-label="重新播放粒子汇聚">↻ &nbsp;重新汇聚</button>
+      <button id="play" class="tool" type="button" aria-label="暂停或继续动画">Ⅱ &nbsp;暂停</button>
+    </div>
+    <div class="status">
+      <div class="pill"><span class="indicator"></span><span id="renderer">WEBGL 2</span><span id="fps" aria-live="off">— FPS</span></div>
+      <label class="pill" for="quality">画质
+        <select id="quality" aria-label="选择画质">
+          <option value="auto" selected>自动</option><option value="low">流畅</option><option value="medium">均衡</option><option value="high">精细</option>
+        </select>
+        <span id="quality-now">均衡</span>
+      </label>
+    </div>
+  </footer>
+  <div id="error" role="alert"><div class="error-content"><div class="error-heart">♥</div><h2>无法启动 WebGL 2</h2><p id="error-message">这台设备或浏览器无法启动 WebGL 2。请更新浏览器，或尝试开启硬件加速。</p><a class="tool" href="./">重试</a></div></div>
+</main>
+<script>
+'use strict';
+
+// Violet / 02 — dependency-free WebGL2 particle sculpture.
+// Canonical WebGL2 viewer, rendered at the site root.
+(() => {
+  const canvas = document.getElementById('scene');
+  const errorBox = document.getElementById('error');
+  const qualitySelect = document.getElementById('quality');
+  const qualityLabel = document.getElementById('quality-now');
+  const fpsLabel = document.getElementById('fps');
+  const playButton = document.getElementById('play');
+  const replayButton = document.getElementById('replay');
+  const notice = document.getElementById('notice');
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  if (reducedMotion.matches) notice.textContent = '已遵循系统减少动画设置 · 点击「继续」播放';
+  const presets = {
+    low:    { shell: 1750, fibers: 300, rim: 240, stars: 72, dust: 35, dpr: 1.05 },
+    medium: { shell: 3000, fibers: 575, rim: 400, stars: 120, dust: 65, dpr: 1.3 },
+    high:   { shell: 4900, fibers: 860, rim: 650, stars: 165, dust: 95, dpr: 1.6 },
+  };
+  const labels = { low: '流畅', medium: '均衡', high: '精细' };
+  const TAU = Math.PI * 2;
+  const centerY = .075;
+  let gl, program, backgroundProgram, vao, buffer, fullscreenVao;
+  let particleUniforms, backgroundUniforms;
+  let particleCount = 0;
+  let tier = 'medium', auto = true, running = !reducedMotion.matches;
+  let elapsed = reducedMotion.matches ? 8 : 0;
+  let clock = 0, lastTime = 0, pulseTime = -100;
+  let width = 1, height = 1, pixelRatio = 1, unit = 200;
+  let mouseX = 0, mouseY = 0, smoothX = 0, smoothY = 0;
+  let raf = 0, fpsWindow = 0, frames = 0, slowWindows = 0, fastWindows = 0, lastTierChange = 0;
+  let hidden = document.hidden, disposed = false;
+  const streams = [ [-.93,.46,1.1],[-.48,.35,2.4],[0,.26,4.8],[.48,-.37,3.2],[.93,-.48,5.6] ];
+  const contour = makeContour();
+
+  const vertexSource = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aCorner;
+layout(location=1) in vec3 aTarget;
+layout(location=2) in vec3 aStart;
+layout(location=3) in vec4 aMeta;  // diameter, phase, speed, palette
+layout(location=4) in vec4 aExtra; // delay, duration, opacity, kind
+uniform vec2 uViewport;
+uniform float uUnit;
+uniform float uElapsed;
+uniform float uTime;
+uniform float uPulseAge;
+uniform mat3 uRotation;
+out vec2 vUv;
+out vec3 vColor;
+out float vAlpha;
+const float PI=3.14159265359;
+vec3 palette(float c){
+  if(c<.5) return vec3(.40,.20,.67);
+  if(c<1.5) return vec3(.60,.35,.88);
+  if(c<2.5) return vec3(.75,.54,.97);
+  if(c<3.5) return vec3(.91,.72,.99);
+  if(c<4.5) return vec3(1.0,.90,1.0);
+  return vec3(.89,.42,.78);
+}
+float centerY(float y,float r){return .075+(y-.075)*r;}
+vec2 heart(float t){
+  float s=sin(t);
+  return vec2(s*s*s,(-13.0*cos(t)+5.0*cos(2.0*t)+2.0*cos(3.0*t)+cos(4.0*t)-2.4)/16.0);
+}
+void main(){
+  float kind=aExtra.w;
+  float alpha=aExtra.z;
+  float size=aMeta.x;
+  vec3 pos=aTarget;
+  float phase=aMeta.y;
+  float t=uTime;
+  vUv=aCorner;
+  vec2 clip;
+  float perspective=1.0;
+  if(kind>1.5 && kind<2.5){
+    // Background stars use normalized screen coordinates, not model coordinates.
+    clip=aTarget.xy*2.0-1.0;
+    alpha*=.72+.28*sin(t*1.23+phase);
+    size*=.85+.15*sin(t*.7+phase);
+  } else {
+    if(kind>.5 && kind<1.5){
+      float a=aTarget.x+t*aMeta.z*.15;
+      float r=aTarget.y+sin(t*2.0+phase)*.012;
+      vec2 e=heart(a);
+      pos=vec3(e.x*r,centerY(e.y,r),aTarget.z);
+      float band=pow(.5+.5*cos((a-t*.23)*18.0),8.0);
+      alpha*=.36+.76*band;
+      size*=1.0+.3*band;
+      alpha*=smoothstep(2.55,4.2,uElapsed);
+    } else if(kind>2.5 && kind<3.5){
+      pos.x+=sin(t*.20+phase)*.03;
+      pos.y+=cos(t*.17+phase)*.05;
+      alpha*=.73+.27*sin(t*.9+phase);
+      alpha*=smoothstep(2.0,5.0,uElapsed);
+    } else {
+      float local=clamp((uElapsed-aExtra.x)/max(aExtra.y,.1),0.0,1.0);
+      float progress=local*local*(3.0-2.0*local);
+      float curl=sin(PI*local)*pow(1.0-local,.5);
+      pos=mix(aStart,aTarget,progress);
+      pos.x+=curl*(sin(local*8.0+phase)*.27 +sin(local*6.2831853)*aStart.z*.17);
+      pos.z+=curl*cos(local*7.0+phase)*.16;
+      float ripple=sin(aTarget.x*8.0+aTarget.y*10.0-t*2.1+phase);
+      float arrival=smoothstep(.72,1.0,local);
+      pos.xy += aTarget.xy * (ripple*.008 +sin(t*aMeta.z+phase)*.005)*arrival;
+      pos.z += sin(t*aMeta.z*.75+phase)*.018*arrival;
+      alpha*=smoothstep(0.0,.13,local);
+      float linger=pow(max(0.0,1.0-local),1.4);
+      size*=1.0+linger*.5;
+    }
+    float breath=1.0+sin(t*1.18)*.009*smoothstep(2.0,4.5,uElapsed);
+    pos.xy*=breath;
+    vec3 rotated=uRotation*pos;
+    perspective=1.0/(1.0-rotated.z*.22);
+    clip=vec2(rotated.x,-rotated.y)*uUnit*perspective*2.0/uViewport+vec2(0.0,.065);
+    // Light direction is slightly upper-left, with back surface darker.
+    float facing=clamp(.68+rotated.z*.46, .28,1.18);
+    float topLight=clamp(.94-rotated.y*.16-rotated.x*.13,.72,1.15);
+    alpha*=facing*topLight;
+    if(kind<.5){
+      float radial=length(aTarget.xy);
+      if(uPulseAge>=0.0 && uPulseAge<1.75){
+        float front=uPulseAge*.88;
+        float pulse=exp(-pow((radial-front)*15.0,2.0))*exp(-uPulseAge*.8);
+        alpha+=pulse*.42;
+        size*=1.0+pulse*.85;
+      }
+    }
+  }
+  vColor=palette(aMeta.w);
+  if(kind>1.5 && kind<2.5) vColor=mix(vColor,vec3(.62,.46,.80),.24);
+  vAlpha=alpha;
+  // World-space particles remain circular in screen space while sculpture rotates.
+  vec2 delta=aCorner*size*perspective/uViewport;
+  gl_Position=vec4(clip+delta,0.0,1.0);
+}`;
+
+  const fragmentSource = `#version 300 es
+precision highp float;
+in vec2 vUv;
+in vec3 vColor;
+in float vAlpha;
+out vec4 outColor;
+void main(){
+  float r2=dot(vUv,vUv);
+  if(r2>1.0) discard;
+  float core=exp(-r2*17.0);
+  float haze=exp(-r2*3.5);
+  float falloff=1.0-smoothstep(.6,1.0,r2);
+  float opacity=(.80*core+.20*haze)*falloff*vAlpha;
+  outColor=vec4(vColor*(.73+.35*core),opacity);
+}`;
+
+  const backgroundVertex = `#version 300 es
+precision highp float;
+const vec2 pts[3]=vec2[3](vec2(-1.0,-1.0),vec2(3.0,-1.0),vec2(-1.0,3.0));
+void main(){gl_Position=vec4(pts[gl_VertexID],0.0,1.0);}`;
+
+  const backgroundFragment = `#version 300 es
+precision highp float;
+uniform vec2 uResolution;
+uniform float uTime;
+out vec4 outColor;
+float noise(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453123);}
+void main(){
+  vec2 uv=(gl_FragCoord.xy/uResolution-.5);
+  uv.x*=uResolution.x/uResolution.y;
+  float halo=exp(-dot(uv-vec2(0.0,.035),uv-vec2(0.0,.035))*5.5);
+  float mauve=exp(-dot((uv-vec2(.22,-.1))*vec2(1.3,1.6),(uv-vec2(.22,-.1))*vec2(1.3,1.6))*10.0);
+  float below=exp(-dot((uv-vec2(-.06,-.43))*vec2(.9,1.8),(uv-vec2(-.06,-.43))*vec2(.9,1.8))*7.0);
+  vec3 c=vec3(.026,.018,.041);
+  c+=vec3(.056,.026,.082)*halo;
+  c+=vec3(.032,.011,.043)*mauve;
+  c+=vec3(.025,.007,.032)*below;
+  float vignette=1.0-smoothstep(.15,1.3,length(uv));
+  c*=.73+.27*vignette;
+  c+=(noise(gl_FragCoord.xy)-.5)*.0024;
+  outColor=vec4(c,1.0);
+}`;
+
+  function showError(message){
+    errorBox.classList.add('show');
+    if(message) document.getElementById('error-message').textContent=message;
+  }
+  function shader(type,source){
+    const s=gl.createShader(type);
+    gl.shaderSource(s,source); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){
+      const error=gl.getShaderInfoLog(s); gl.deleteShader(s); throw Error(error);
+    }
+    return s;
+  }
+  function makeProgram(v,f){
+    const p=gl.createProgram();
+    const vs=shader(gl.VERTEX_SHADER,v), fs=shader(gl.FRAGMENT_SHADER,f);
+    gl.attachShader(p,vs); gl.attachShader(p,fs); gl.linkProgram(p);
+    gl.deleteShader(vs); gl.deleteShader(fs);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS)){
+      const error=gl.getProgramInfoLog(p);gl.deleteProgram(p);throw Error(error);
+    }
+    return p;
+  }
+  function makeContour(){
+    const raw=[];let total=0;
+    for(let i=0;i<=1024;i++){
+      const a=i/1024*TAU;
+      const x=Math.sin(a)**3;
+      const y=(-13*Math.cos(a)+5*Math.cos(2*a)+2*Math.cos(3*a)+Math.cos(4*a)-2.4)/16;
+      if(i) total+=Math.hypot(x-raw[i-1].x,y-raw[i-1].y);
+      raw.push({x,y,a,length:total});
+    }
+    const result=[];let index=1;
+    for(let i=0;i<1024;i++){
+      const d=i/1024*total;
+      while(index<raw.length-1&&raw[index].length<d) index++;
+      const p=raw[index-1],q=raw[index];
+      const f=(d-p.length)/(q.length-p.length||1);
+      result.push({x:p.x+(q.x-p.x)*f,y:p.y+(q.y-p.y)*f,a:p.a+(q.a-p.a)*f});
+    }
+    return result;
+  }
+  function seeded(seed){return () => {seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296;};}
+  function buildParticles(quality){
+    const opt=presets[quality], rand=seeded(731902), data=[];
+    const between=(min,max)=>min+rand()*(max-min);
+    const add=(target,start,size,phase,speed,hue,delay,duration,alpha,kind)=>{
+      data.push(...target,...start,size,phase,speed,hue,delay,duration,alpha,kind);
+    };
+    const shell=(u,r,side,alpha,size,overrideHue)=>{
+      const index=Math.min(1023,Math.floor(((u%1+1)%1)*1024));
+      const edge=contour[index];
+      const x=edge.x*r,y=centerY+(edge.y-centerY)*r;
+      const z=side*.78*Math.sqrt(Math.max(0,1-r*r))*(1-Math.max(0,y)*.28)+between(-.03,.03);
+      const light=between(.03,.70)-x*.23-y*.25+side*.10;
+      let hue=overrideHue??(light>.65?4:light>.44?3:light>.25?2:light>.11?1:0);
+      if(x>.08&&rand()<.17) hue=5;
+      const stream=streams[Math.floor(rand()*streams.length)];
+      const start=[stream[0]+between(-.22,.22),between(2.3,3.65),stream[1]+between(-.8,.8)];
+      const phase=between(0,TAU),speed=between(.65,2.0);
+      add([x,y,z],start,size,phase,speed,hue,between(0,1.04)+Math.abs(stream[0])*.18,between(1.65,2.75)+(.9-y)*.47,alpha,0);
+    };
+    for(let i=0;i<opt.shell;i++){
+      const rim=i%5===0;
+      const r=rim?between(.9,1.025):Math.sqrt(rand())*.995;
+      const side=rand()<.75?1:-1;
+      shell(rand(),r,side,rim?between(.60,.97):between(.34,.79),rim?between(4.4,10.4):between(2.8,6.6));
+    }
+    const numFibers=Math.floor(opt.fibers/34);
+    for(let i=0;i<numFibers;i++){
+      const origin=i/numFibers+between(-.016,.016),r=between(.35,.93),bend=between(.10,.30);
+      for(let j=0;j<34;j++){
+        const t=j/33,opacity=Math.sin(t*Math.PI)*between(.26,.48);
+        shell(origin+t*bend,r+.048*Math.sin(t*Math.PI),1,opacity,between(2.2,4.2));
+      }
+    }
+    // Sparse glints on the visible shell.
+    for(let i=0;i<Math.max(12,Math.floor(opt.shell/180));i++) shell(rand(),between(.75,1.02),1,between(.6,.95),between(8,15),4);
+    // Rim points cycle around the contour in opposite directions; their positions are evaluated in the GPU.
+    for(let i=0;i<opt.rim;i++){
+      const e=contour[Math.floor(rand()*contour.length)];
+      const layer=i%4===0?-1:between(.1,.9);
+      add([e.a,between(.91,1.04),layer*.42],[0,0,0],between(5.0,11.5),between(0,TAU),i%4===0?between(-.8,-.35):between(.35,.9),i%5===0?5:between(1,4)|0,0,1,between(.35,.86),1);
+    }
+    for(let i=0;i<opt.stars;i++){
+      add([rand(),rand(),0],[0,0,0],between(1.3,4.0),between(0,TAU),1,rand()>.84?4:1,0,1,between(.10,.34),2);
+    }
+    for(let i=0;i<opt.dust;i++){
+      const a=between(0,TAU),r=between(1.07,1.65);
+      add([Math.cos(a)*r,Math.sin(a)*r*.75,between(-.3,.35)],[0,0,0],between(1.5,4.4),between(0,TAU),1,2,0,1,between(.12,.30),3);
+    }
+    return new Float32Array(data);
+  }
+  function rotation(yaw,pitch,roll){
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch),cz=Math.cos(roll),sz=Math.sin(roll);
+    // Column-major mat3 for Rx * Ry, followed by a gentle z-axis roll.
+    return new Float32Array([
+      cz*cy-sz*sx*sy, sz*cy+cz*sx*sy, -cx*sy,
+      -sz*cx, cz*cx, sx,
+      cz*sy+sz*sx*cy, sz*sy-cz*sx*cy, cx*cy,
+    ]);
+  }
+  function initialize(){
+    gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,premultipliedAlpha:false,powerPreference:'high-performance'});
+    if(!gl){showError('浏览器没有可用的 WebGL 2 环境。可以更新显卡驱动、开启硬件加速，或直接观看 Canvas 原版。');return false;}
+    // Report compiling errors visibly instead of leaving the canvas black.
+    program=makeProgram(vertexSource,fragmentSource);
+    backgroundProgram=makeProgram(backgroundVertex,backgroundFragment);
+    particleUniforms=Object.fromEntries(['uViewport','uUnit','uElapsed','uTime','uPulseAge','uRotation'].map(name=>[name,gl.getUniformLocation(program,name)]));
+    backgroundUniforms=Object.fromEntries(['uResolution','uTime'].map(name=>[name,gl.getUniformLocation(backgroundProgram,name)]));
+    vao=gl.createVertexArray();gl.bindVertexArray(vao);
+    const corners=new Float32Array([-1,-1,1,-1,-1,1,1,1]);
+    const cornerBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cornerBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,corners,gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+    buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+    // Interleaved float layout: 3 + 3 + 4 + 4 = 14 floats per instance.
+    const stride=14*4;
+    for(const [loc,count,offset] of [[1,3,0],[2,3,3],[3,4,6],[4,4,10]]){
+      gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,count,gl.FLOAT,false,stride,offset*4);gl.vertexAttribDivisor(loc,1);
+    }
+    gl.bindVertexArray(null);
+    fullscreenVao=gl.createVertexArray();
+    setTier(tier);
+    return true;
+  }
+  function setTier(next){
+    if(!gl)return;
+    tier=next;qualityLabel.textContent=labels[tier];
+    const data=buildParticles(tier);
+    particleCount=data.length/14;
+    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+    gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+    resize();
+    slowWindows=fastWindows=0;
+    lastTierChange=performance.now();
+  }
+  function resize(){
+    if(!gl)return;
+    const rect=canvas.getBoundingClientRect();
+    width=Math.max(1,rect.width);height=Math.max(1,rect.height);
+    pixelRatio=Math.min(devicePixelRatio||1,presets[tier].dpr,2400/width,1600/height);
+    pixelRatio=Math.max(.5,pixelRatio);
+    const w=Math.max(1,Math.round(width*pixelRatio)),h=Math.max(1,Math.round(height*pixelRatio));
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+    gl.viewport(0,0,w,h);
+    unit=Math.min(width*.365,height*.35,315);
+    if(!running)render();
+  }
+  function render(){
+    if(!gl||disposed||hidden)return;
+    const t=clock;
+    const yaw=(Math.sin(Math.max(0,t-3)*.40)*.42+smoothX*.20)*Math.min(1,elapsed/4);
+    const pitch=-.075+Math.sin(t*.52)*.08+smoothY*.13;
+    const roll=Math.sin(t*.37)*.038;
+    gl.disable(gl.BLEND);
+    gl.useProgram(backgroundProgram);
+    gl.bindVertexArray(fullscreenVao);
+    gl.uniform2f(backgroundUniforms.uResolution,canvas.width,canvas.height);
+    gl.uniform1f(backgroundUniforms.uTime,t);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
+    gl.uniform2f(particleUniforms.uViewport,width,height);
+    gl.uniform1f(particleUniforms.uUnit,unit);
+    gl.uniform1f(particleUniforms.uElapsed,elapsed);
+    gl.uniform1f(particleUniforms.uTime,t);
+    gl.uniform1f(particleUniforms.uPulseAge,pulseTime<0?-1:clock-pulseTime);
+    gl.uniformMatrix3fv(particleUniforms.uRotation,false,rotation(yaw,pitch,roll));
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,particleCount);
+    gl.bindVertexArray(null);
+    gl.disable(gl.BLEND);
+  }
+  function frame(time){
+    if(!running||hidden||disposed)return;
+    if(!lastTime)lastTime=time;
+    const dt=Math.max(0,Math.min(.05,(time-lastTime)/1000));
+    lastTime=time;clock+=dt;elapsed+=dt;
+    const smoothing=1-Math.exp(-dt*7);
+    smoothX+=(mouseX-smoothX)*smoothing;
+    smoothY+=(mouseY-smoothY)*smoothing;
+    render();
+    frames++;
+    if(!fpsWindow)fpsWindow=time;
+    const span=time-fpsWindow;
+    if(span>=2000){
+      const fps=Math.round(frames*1000/span);
+      fpsLabel.textContent=`${fps} FPS`;
+      if(auto&&time-lastTierChange>6000&&elapsed>5&&span>0){
+        if(fps<49){slowWindows++;fastWindows=0;}
+        else if(fps>=58){fastWindows++;slowWindows=0;}
+        else{slowWindows=0;fastWindows=0;}
+        if(slowWindows>=2&&tier!=='low')setTier(tier==='high'?'medium':'low');
+        else if(fastWindows>=4&&tier!=='high')setTier(tier==='low'?'medium':'high');
+      }
+      frames=0;fpsWindow=time;
+    }
+    raf=requestAnimationFrame(frame);
+  }
+  function stop(){
+    running=false;cancelAnimationFrame(raf);raf=0;
+    playButton.textContent='▷ 继续';playButton.setAttribute('aria-label','继续动画');
+    fpsLabel.textContent='已暂停';
+  }
+  function run(){
+    if(disposed||!gl)return;
+    running=true;lastTime=0;fpsWindow=0;frames=0;
+    playButton.textContent='Ⅱ 暂停';playButton.setAttribute('aria-label','暂停动画');
+    fpsLabel.textContent='— FPS';
+    if(!hidden){cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}
+  }
+  function reset(){
+    elapsed=0;clock=0;pulseTime=-100;
+    if(!running)run();
+    render();
+  }
+  canvas.addEventListener('pointermove',e=>{
+    if(e.pointerType==='touch')return;
+    const r=canvas.getBoundingClientRect();
+    mouseX=Math.max(-1,Math.min(1,((e.clientX-r.left)/r.width-.5)*2));
+    mouseY=Math.max(-1,Math.min(1,((e.clientY-r.top)/r.height-.5)*-2));
+  },{passive:true});
+  canvas.addEventListener('pointerleave',()=>{mouseX=mouseY=0;});
+  canvas.addEventListener('pointerdown',()=>{
+    notice.hidden=true;
+    if(!running)run();
+    pulseTime=clock;
+  },{passive:true});
+  replayButton.addEventListener('click',reset);
+  playButton.addEventListener('click',()=>running?stop():run());
+  qualitySelect.addEventListener('change',()=>{
+    auto=qualitySelect.value==='auto';
+    setTier(auto?'medium':qualitySelect.value);
+    render();
+  });
+  document.addEventListener('keydown',e=>{
+    if(['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName))return;
+    if(e.code==='Space'){e.preventDefault();running?stop():run();}
+    if(e.key==='r'||e.key==='R')reset();
+  });
+  document.addEventListener('visibilitychange',()=>{
+    hidden=document.hidden;
+    if(hidden){cancelAnimationFrame(raf);raf=0;}
+    else if(running){lastTime=0;fpsWindow=0;raf=requestAnimationFrame(frame);}
+    else render();
+  });
+  reducedMotion.addEventListener('change',()=>{
+    if(reducedMotion.matches){elapsed=8;notice.hidden=false;notice.textContent='已遵循系统减少动画设置 · 点击「继续」播放';stop();render();}
+    else if(!running) { notice.textContent='移动鼠标 · 触碰爱心'; }
+  });
+  canvas.addEventListener('webglcontextlost',e=>{
+    e.preventDefault();cancelAnimationFrame(raf);raf=0;gl=null;
+    fpsLabel.textContent='设备重置';
+  });
+  canvas.addEventListener('webglcontextrestored',()=>{
+    try{if(initialize()){lastTime=0;if(running&&!hidden)raf=requestAnimationFrame(frame);else render();}}
+    catch(e){console.error(e);showError('WebGL 图形设备恢复失败，请刷新页面重试。');}
+  });
+  new ResizeObserver(resize).observe(canvas);
+  try{
+    if(initialize()){
+      if(running)run();else {render();stop();}
+    }
+  }catch(e){
+    console.error('[Violet/WebGL]',e);
+    showError(`图形着色器初始化失败：${String(e.message).slice(0,160)}`);
+  }
+})();
+
+</script>
 </body>
 </html>
