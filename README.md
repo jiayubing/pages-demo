@@ -1,21 +1,16 @@
-# 紫色心跳 · WebGL 粒子雕塑
+# Violet Orbit · 紫色星云爱心
 
-正式地址：https://www.jiayubing.cn/
+首页：https://www.jiayubing.cn/
 
-纯 HTML + 原生 WebGL2 / GLSL，不使用第三方运行时或构建工具。直接通过 GitHub Pages 托管。
+约 11 秒的分阶段出场：星云与光流从四周聚拢，形成紫色爱心，随后持续呼吸、绕行。支持暂停、重播、速度与辉光调整、省电模式及减少动画偏好。原生 JavaScript、WebGL 与 Canvas 回退，无第三方运行时或构建步骤。
 
-## V4 视觉结构
+## 页面与文件
 
-- GPU 实例化星尘构成心形主体，前后颗粒按朝向分层受光。
-- 一层低面数弧形半透明表面提供体积感，使用独立的顶点/片元着色器（新增一个绘制批次）。
-- 保留汇聚、呼吸、柔和自转、点击涟漪；新增稀疏的三维环绕碎光与底部托光。
-- 画质：自动、流畅、均衡、精细；提供实时 FPS 显示。
-- 系统启用「减少动画」时默认静止，可通过「继续」或「重新汇聚」手动播放。
+- `index.html`、`style.css`、`universe.js`、`nebula.webp`：爱心首页
+- `stellar-encounter/`：独立双星动画，地址 https://www.jiayubing.cn/stellar-encounter/
+- `webgl.html`：旧链接兼容跳转
+- `CNAME`：现有自定义域名设置
 
-## 文件
+直接由 GitHub Pages 托管。也可在仓库根目录运行 `python3 -m http.server 8080` 本地查看。
 
-- `index.html`：正式 WebGL2 单文件页面，包含着色器、粒子数据生成与 UI。
-- `webgl.html`：旧实验版 URL 的兼容跳转页。
-- `CNAME`：自定义域名设置。
-
-没有 WebGL2 的设备会显示明确提示，而不是静默黑屏。性能数据需要在目标设备上测量；自动画质只根据 FPS 调整粒子数量与渲染分辨率。
+首页来自已完成的 Violet Orbit 第 5 版，来源提交 `ae8e8660879b91f9eca3d712862a986c3aef0c5f`。帧率目标不代表实体设备实测性能。
