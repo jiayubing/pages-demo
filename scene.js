@@ -11,18 +11,11 @@
  const clouds=document.querySelector("#clouds"),shade=document.querySelector("#weatherShade");let cloudCover=0,rainfall=0;
  let rotorSize=500, originX=0,originY=0;const material=[];
  const source=document.querySelector('#paperSource'),surface=document.querySelector('#paperRotor');
- // Muted paper tones stay readable in daylight and harmonize with lavender dusk.
- const paperPalette=[[164,116,177],[112,143,176],[191,132,151],[167,146,191],[191,169,121],[139,159,185]];
- function paperColor(r,g,b){
-  let chosen=paperPalette[0],best=Infinity;
-  for(const tone of paperPalette){const d=(r-tone[0])**2+(g-tone[1])**2+(b-tone[2])**2;if(d<best){best=d;chosen=tone;}}
-  return 'rgb('+chosen.join(',')+')';
- }
  function preparePaper(){
   const tmp=document.createElement('canvas');tmp.width=tmp.height=360;const c=tmp.getContext('2d',{willReadFrequently:true});c.drawImage(source,0,0,360,360);const pixels=c.getImageData(0,0,360,360).data;
   surface.width=surface.height=720;const r=surface.getContext('2d');
   // Individual paper tesserae preserve the original folds and palette.
-  for(let y=0;y<360;y+=3)for(let x=0;x<360;x+=3){const k=(y*360+x)*4;if(pixels[k+3]<220)continue;r.drawImage(tmp,x,y,3,3,x*2,y*2,5.8,5.8);const dx=x/360-.4935,dy=y/360-.4945,rr=Math.hypot(dx,dy);if(rr>.19&&rr<.43&&Math.max(pixels[k],pixels[k+1],pixels[k+2])-Math.min(pixels[k],pixels[k+1],pixels[k+2])>22)material.push({x:dx,y:dy,col:paperColor(pixels[k],pixels[k+1],pixels[k+2])});}
+  for(let y=0;y<360;y+=3)for(let x=0;x<360;x+=3){const k=(y*360+x)*4;if(pixels[k+3]<220)continue;r.drawImage(tmp,x,y,3,3,x*2,y*2,5.8,5.8);const dx=x/360-.4935,dy=y/360-.4945,rr=Math.hypot(dx,dy);if(rr>.19&&rr<.43&&Math.max(pixels[k],pixels[k+1],pixels[k+2])-Math.min(pixels[k],pixels[k+1],pixels[k+2])>22)material.push({x:dx,y:dy,col:`rgb(${[pixels[k],pixels[k+1],pixels[k+2]].map(v=>Math.round(Math.max(0,Math.min(255,(v-160)*1.2+140)))).join(',')})`});}
   source.style.visibility='hidden';
   for(let i=0;i<(W<600?330:440);i++){
    const m=material[Math.floor(random()*material.length)];
@@ -38,7 +31,7 @@
  const stamps=new Map();
  function paperStamp(col,shape){
   // Quantized sampled colors share a small set of prepainted paper silhouettes.
-  const rgb=col.match(/\d+/g).map(v=>Math.min(255,Math.round(Number(v)/8)*8));
+  const rgb=col.match(/\d+/g).map(v=>Math.min(255,Math.round(Number(v)/32)*32));
   const color='rgb('+rgb.join(',')+')',key=color+':'+shape;
   if(stamps.has(key))return stamps.get(key);
   const canvas=document.createElement('canvas');canvas.width=canvas.height=72;
