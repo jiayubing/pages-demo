@@ -12,13 +12,13 @@
  }
  async function start(){
   if(!enabled)return;
-  if(!context){context=new (window.AudioContext||window.webkitAudioContext)();volume=context.createGain();volume.gain.value=.65;volume.connect(context.destination);context.addEventListener('statechange',update);}
+  if(!context){context=new (window.AudioContext||window.webkitAudioContext)();volume=context.createGain();volume.gain.value=.48;volume.connect(context.destination);context.addEventListener('statechange',update);}
   // Resume is called directly in the gesture handler, before any network await.
   const resumed=context.resume();
-  if(!loading)loading=fetch('assets/paper-front-loop.wav').then(r=>{if(!r.ok)throw new Error('Audio download failed');return r.arrayBuffer();}).then(b=>context.decodeAudioData(b)).then(buffer=>{
+  if(!loading)loading=fetch('assets/paper-opening-loop.wav').then(r=>{if(!r.ok)throw new Error('Audio download failed');return r.arrayBuffer();}).then(b=>context.decodeAudioData(b)).then(buffer=>{
    source=context.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(volume);source.start();update();
   });
-  volume.gain.setTargetAtTime(enabled?.65:0,context.currentTime,.04);
+  volume.gain.setTargetAtTime(enabled?.48:0,context.currentTime,.04);
   try{await Promise.all([resumed,loading]);}catch{ /* Autoplay may require a user gesture. */ }
   update();
  }
