@@ -1,16 +1,15 @@
-# Violet Orbit · 紫色星云爱心
+# 风经过的地方 · 纸风车
 
-首页：https://www.jiayubing.cn/
+首页：https://jiayubing.cn/ （自动转到 https://www.jiayubing.cn/）
 
-约 11 秒的分阶段出场：星云与光流从四周聚拢，形成紫色爱心，随后持续呼吸、绕行。支持暂停、重播、速度与辉光调整、省电模式及减少动画偏好。原生 JavaScript、WebGL 与 Canvas 回退，无第三方运行时或构建步骤。
+纸风车、彩纸飞舞、自动天气与昼夜变化，支持移动端、暂停和可选声音。纯静态 HTML/CSS/JavaScript，无构建步骤。
 
-## 页面与文件
+- 首页：`index.html`、`pinwheel.css`、`scene.js`、`source-audio.js`、`assets/`
+- 紫色爱心：https://www.jiayubing.cn/violet-heart/
+- 双星动画：https://www.jiayubing.cn/stellar-encounter/
+- `webgl.html`：保留旧爱心链接，跳转至 `violet-heart/`
+- `CNAME`：保持原有自定义域名 www.jiayubing.cn
 
-- `index.html`、`style.css`、`universe.js`、`nebula.webp`：爱心首页
-- `stellar-encounter/`：独立双星动画，地址 https://www.jiayubing.cn/stellar-encounter/
-- `webgl.html`：旧链接兼容跳转
-- `CNAME`：现有自定义域名设置
+风车源版本：0951114094fe594885b968ece63b8881f91dc。音轨来自用户提供参考，默认静音，点击声音按钮播放。原首页资源保留以兼容已有引用。
 
-直接由 GitHub Pages 托管。也可在仓库根目录运行 `python3 -m http.server 8080` 本地查看。
-
-首页来自已完成的 Violet Orbit 第 5 版，来源提交 `ae8e8660879b91f9eca3d712862a986c3aef0c5f`。帧率目标不代表实体设备实测性能。
+本地预览：在仓库根目录运行 `python3 -m http.server 8080`。
