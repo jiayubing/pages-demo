@@ -11,13 +11,20 @@
  const clouds=document.querySelector("#clouds"),shade=document.querySelector("#weatherShade");let cloudCover=0,rainfall=0;
  let rotorSize=500, originX=0,originY=0;const material=[];
  const source=document.querySelector('#paperSource'),surface=document.querySelector('#paperRotor');
+ // Muted paper tones stay readable in daylight and harmonize with lavender dusk.
+ const paperPalette=[[164,116,177],[112,143,176],[191,132,151],[167,146,191],[191,169,121],[139,159,185]];
+ function paperColor(r,g,b){
+  let chosen=paperPalette[0],best=Infinity;
+  for(const tone of paperPalette){const d=(r-tone[0])**2+(g-tone[1])**2+(b-tone[2])**2;if(d<best){best=d;chosen=tone;}}
+  return 'rgb('+chosen.join(',')+')';
+ }
  function preparePaper(){
   const tmp=document.createElement('canvas');tmp.width=tmp.height=360;const c=tmp.getContext('2d',{willReadFrequently:true});c.drawImage(source,0,0,360,360);const pixels=c.getImageData(0,0,360,360).data;
   surface.width=surface.height=720;const r=surface.getContext('2d');
   // Individual paper tesserae preserve the original folds and palette.
-  for(let y=0;y<360;y+=3)for(let x=0;x<360;x+=3){const k=(y*360+x)*4;if(pixels[k+3]<220)continue;r.drawImage(tmp,x,y,3,3,x*2,y*2,5.8,5.8);const dx=x/360-.4935,dy=y/360-.4945,rr=Math.hypot(dx,dy);if(rr>.19&&rr<.43&&Math.max(pixels[k],pixels[k+1],pixels[k+2])-Math.min(pixels[k],pixels[k+1],pixels[k+2])>22)material.push({x:dx,y:dy,col:`rgb(${[pixels[k],pixels[k+1],pixels[k+2]].map(v=>Math.round(Math.max(0,Math.min(255,(v-160)*1.2+140)))).join(',')})`});}
+  for(let y=0;y<360;y+=3)for(let x=0;x<360;x+=3){const k=(y*360+x)*4;if(pixels[k+3]<220)continue;r.drawImage(tmp,x,y,3,3,x*2,y*2,5.8,5.8);const dx=x/360-.4935,dy=y/360-.4945,rr=Math.hypot(dx,dy);if(rr>.19&&rr<.43&&Math.max(pixels[k],pixels[k+1],pixels[k+2])-Math.min(pixels[k],pixels[k+1],pixels[k+2])>22)material.push({x:dx,y:dy,col:paperColor(pixels[k],pixels[k+1],pixels[k+2])});}
   source.style.visibility='hidden';
-  for(let i=0;i<(W<600?540:720);i++){
+  for(let i=0;i<(W<600?330:440);i++){
    const m=material[Math.floor(random()*material.length)];
    const end=random()<.985?.13+random()*.09:.38+random()*.12;
    field.push({end,pace:.8+random()*.4,u:Math.pow(random(),1.35)*end,sx:random()<.35?-.15:-.25+random()*1.65,sy:-.25+random()*1.5,size:random()<.88?5+random()*11:18+random()*15,col:m.col,curl:(random()-.5)*2,flutterHz:4+random()*5,spin:(random()<.5?-1:1)*(1.2+random()*2.8),drift:random(),phase:random()*6.28,roll:random()*6.28,twist:.5+random(),shape:1+Math.floor(random()*2)});
@@ -26,12 +33,12 @@
  if(source.complete&&source.naturalWidth)preparePaper();else source.addEventListener('load',preparePaper,{once:true});
  function spawn(initial=false,boost=false){if(!material.length)return;const m=material[Math.floor(random()*material.length)],cos=Math.cos(angle),sin=Math.sin(angle);particles.push({x:originX+(m.x*cos-m.y*sin)*rotorSize,y:originY+(m.x*sin+m.y*cos)*rotorSize,end:random()<.985?.16+random()*.1:.4+random()*.12,pace:.8+random()*.4,age:0,life:7+random()*5,size:(5+random()*8)*(W<600?.85:1),col:m.col,curl:(random()-.5)*2,flutterHz:4+random()*5,spin:(random()<.5?-1:1)*(1.2+random()*2.8),drift:random(),phase:random()*6.28,roll:random()*6.28,twist:.5+random(),spread:(random()-.5)*2.1,lift:.04+random()*.19,reach:.8+random()*.95,foreground:random()<.06,shape:1+Math.floor(random()*2)});}
  function setDay(v){day=Math.max(0,Math.min(1,v));evening.style.opacity=(day*.82).toFixed(3);sunlight.style.opacity=day.toFixed(3);rotor.style.filter=`sepia(${day*.03}) saturate(${1-day*.08}) brightness(${1-day*.035})`;slider.value=Math.round(day*100);scene.dataset.day=day.toFixed(2);}
- function gust(amount=1){if(paused){paused=false;updatePause()}impulse=Math.min(2.8,impulse+amount);for(let i=0;i<70;i++)if(particles.length<(W<600?560:760))spawn(false,true);document.body.classList.add('quiet');}
+ function gust(amount=1){if(paused){paused=false;updatePause()}impulse=Math.min(2.8,impulse+amount);for(let i=0;i<44;i++)if(particles.length<(W<600?360:490))spawn(false,true);document.body.classList.add('quiet');}
  function updatePause(){dirty=true;pause.setAttribute('aria-pressed',String(paused));pause.setAttribute('aria-label',paused?'继续动画':'暂停动画');document.querySelector('#pauseIcon').innerHTML=paused?'<path d="M9 5l10 7-10 7z"/>':'<path d="M9 6v12M15 6v12"/>';scene.dataset.paused=String(paused);}
  const stamps=new Map();
  function paperStamp(col,shape){
   // Quantized sampled colors share a small set of prepainted paper silhouettes.
-  const rgb=col.match(/\d+/g).map(v=>Math.min(255,Math.round(Number(v)/32)*32));
+  const rgb=col.match(/\d+/g).map(v=>Math.min(255,Math.round(Number(v)/8)*8));
   const color='rgb('+rgb.join(',')+')',key=color+':'+shape;
   if(stamps.has(key))return stamps.get(key);
   const canvas=document.createElement('canvas');canvas.width=canvas.height=72;
@@ -56,7 +63,7 @@
   const breeze=Math.sin(clock*.8-u*3)*.32;
   return {x:W*.035*envelope*(p.curl+slip*.8+breeze),y:H*.045*envelope*(p.curl*.6+Math.sin(progress*5+p.phase)*(.4+p.drift*.5)-breeze)};
  }
- function render(dt){a.clearRect(0,0,W,H);n.clearRect(0,0,W,H);rotorSize=parseFloat(assembly.style.getPropertyValue("--size"));originX=W*(W<600?.49:.46)-rotorSize*.0065;originY=H*(W<600?.48:.42)-rotorSize*.0055;if(!paused){clock+=dt;impulse*=Math.exp(-dt*.48);const cycle=Math.pow(Math.max(0,Math.sin(clock*.27-.8)),3);const weatherPhase=clock%72;const cloudTarget=smooth(Math.min(1,Math.max(0,(weatherPhase-12)/12)))*(1-smooth(Math.min(1,Math.max(0,(weatherPhase-54)/14))));const rainTarget=smooth(Math.min(1,Math.max(0,(weatherPhase-31)/7)))*(1-smooth(Math.min(1,Math.max(0,(weatherPhase-48)/8))));cloudCover+=(cloudTarget-cloudCover)*Math.min(1,dt*.65);rainfall+=(rainTarget-rainfall)*Math.min(1,dt*.7);clouds.style.opacity=(cloudCover*.8).toFixed(3);shade.style.opacity=(cloudCover*.65).toFixed(3);clouds.style.transform=`translateX(${Math.sin(clock*.021)*7}%)`;scene.dataset.weather=rainfall>.25?"light-rain":cloudCover>.3?"cloudy":"sunny";scene.dataset.rain=rainfall.toFixed(2);const target=.85+cycle*1.05+impulse+cloudCover*.35;wind+=(target-wind)*Math.min(1,dt*2.2);angle+=ROTOR_RPS*Math.PI*2*dt;rotor.style.transform=`rotate(${angle}rad)`;const sway=Math.sin(clock*.43)*.42+Math.sin(clock*.71+1.2)*Math.min(wind,1.8)*.22+Math.sin(clock*.19)*.16;assembly.style.transform=`translate(-50%,-50%) rotate(${sway}deg)`;if(!manualDay&&frame%6===0)setDay(smooth(Math.min(1,clock/150)));emitter+=dt*PAPER_SPEED*(176+wind*84)*(.7+.65*Math.pow(.5+.5*Math.sin(clock*.52),2));while(emitter>1){if(particles.length<(W<600?560:760))spawn();emitter--}}
+ function render(dt){a.clearRect(0,0,W,H);n.clearRect(0,0,W,H);rotorSize=parseFloat(assembly.style.getPropertyValue("--size"));originX=W*(W<600?.49:.46)-rotorSize*.0065;originY=H*(W<600?.48:.42)-rotorSize*.0055;if(!paused){clock+=dt;impulse*=Math.exp(-dt*.48);const cycle=Math.pow(Math.max(0,Math.sin(clock*.27-.8)),3);const weatherPhase=clock%72;const cloudTarget=smooth(Math.min(1,Math.max(0,(weatherPhase-12)/12)))*(1-smooth(Math.min(1,Math.max(0,(weatherPhase-54)/14))));const rainTarget=smooth(Math.min(1,Math.max(0,(weatherPhase-31)/7)))*(1-smooth(Math.min(1,Math.max(0,(weatherPhase-48)/8))));cloudCover+=(cloudTarget-cloudCover)*Math.min(1,dt*.65);rainfall+=(rainTarget-rainfall)*Math.min(1,dt*.7);clouds.style.opacity=(cloudCover*.8).toFixed(3);shade.style.opacity=(cloudCover*.65).toFixed(3);clouds.style.transform=`translateX(${Math.sin(clock*.021)*7}%)`;scene.dataset.weather=rainfall>.25?"light-rain":cloudCover>.3?"cloudy":"sunny";scene.dataset.rain=rainfall.toFixed(2);const target=.85+cycle*1.05+impulse+cloudCover*.35;wind+=(target-wind)*Math.min(1,dt*2.2);angle+=ROTOR_RPS*Math.PI*2*dt;rotor.style.transform=`rotate(${angle}rad)`;const sway=Math.sin(clock*.43)*.42+Math.sin(clock*.71+1.2)*Math.min(wind,1.8)*.22+Math.sin(clock*.19)*.16;assembly.style.transform=`translate(-50%,-50%) rotate(${sway}deg)`;if(!manualDay&&frame%6===0)setDay(smooth(Math.min(1,clock/150)));emitter+=dt*PAPER_SPEED*(112+wind*54)*(.7+.65*Math.pow(.5+.5*Math.sin(clock*.52),2));while(emitter>1){if(particles.length<(W<600?360:490))spawn();emitter--}}
  // Recede into the meadow: depth compresses both paper size and flutter.
  for(let i=particles.length-1;i>=0;i--){const p=particles[i];if(!paused)p.age+=dt*PAPER_SPEED*(.9+wind*.5)*p.pace*(1+.15*Math.sin(clock*(.55+p.drift*.6)+p.phase)+.07*Math.sin(clock*1.37+p.roll))*(.45+2.1*Math.exp(-p.age/p.life*6));const u=p.age/p.life;if(u>=p.end){particles[i]=particles[particles.length-1];particles.pop();continue}const depth=1/(1+u*6),travel=1-depth;
  // Near paper opens into a broad fan across the viewer; distant paper converges.
